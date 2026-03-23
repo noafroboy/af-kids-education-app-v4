@@ -1,0 +1,278 @@
+# Task 181 — Integration Verification & Playwright E2E Tests
+
+## Assumption Audit
+
+### What the task specifies
+- Write Playwright E2E tests for 4 user journeys (onboarding, session, free-play, parent-dashboard)
+- Write sanity checks (no hardcoded keys, no oversized components, tap targets, aria-labels)
+- Fix any issues discovered along the way
+
+### Assumptions Made
+1. **Playwright browser install**: `npx playwright install chromium` must be run after installing `@playwright/test`. Assumed OK since the task says "for CI speed".
+2. **DB seeding strategy**: The task says "add helper to seed IndexedDB settings before test". Assumed: navigate to page first (triggers `getDB()` and DB initialization), then use `page.evaluate()` to write to IndexedDB directly.
+3. **Onboarding test flow**: The spec says "Fill name, click onboarding-next" but doesn't mention first clicking `onboarding-start`. Assumed: the test must click `onboarding-start` (on the welcome screen) before the name input appears. Both are included in the test.
+4. **PIN hash for tests**: The correct PIN is '1234'. The hash is computed dynamically in browser context using `crypto.subtle.digest('SHA-256', ...)` — not hardcoded — to match the app's own `hashPIN()` function.
+5. **Streak calendar in parent dashboard**: The streak-calendar is only shown when `sessions.length > 0`. The test expects it to be visible. Mitigation: seed a dummy session record in the DB helper.
+6. **Sanity test tap target check**: The task mentions checking HomeScreen interactives ≥ 88px. The `start-session-btn` is currently `min-h-[64px]` (64px < 88px) and `parent-icon` is `w-12 h-12` (48px < 88px) — both need fixing.
+7. **SongPlayer.tsx line count**: 235 lines — the only component exceeding 200 lines. The extraction strategy is to pull the lyrics panel into a new `SongLyricsPanel.tsx` component.
+
+### What the task does NOT specify (and default chosen)
+- **How long to wait for webServer**: Using `timeout: 60000` for webServer readiness.
+- **Whether to test audio playback**: No. Tests only check element visibility and UI state.
+- **Whether to run jest tests in this PR**: Jest tests are not modified. Focus is on Playwright E2E.
+- **Whether to add `playwright:install` to CI**: Adding `test:e2e` script but not `test:ci:e2e` (out of scope).
+
+---
+
+## Approach Alternatives
+
+### APPROACH A (Conservative) — chosen
+Minimal code changes: add missing `data-testid` attributes, fix two tap target sizes, extract SongPlayer lyrics panel (the one component over 200 lines), add Playwright and write 5 test files. No refactoring of existing logic.
+
+- **Effort**: M
+- **Risk**: Low
+- **Trade-off**: Stays tightly focused; only changes what's required; no risk of regression in existing behavior.
+
+### APPROACH B (Ideal)
+Comprehensive: restructure all components to be under 150 lines (not just 200), add Playwright fixtures and page-object model, extract shared test utilities into a proper fixture factory, add `test:e2e:ci` script that runs with retries and parallelism configured for CI.
+
+- **Effort**: L
+- **Risk**: Med
+- **Trade-off**: Cleaner long-term test architecture but risks scope creep and introduces non-essential refactors that could break existing Jest tests.
+
+### Approach Decision
+**APPROACH A** is chosen. The task is integration verification — the goal is proving existing code works, not redesigning the testing infrastructure. Minimal changes mean fewer regression risks.
+
+---
+
+## Findings: Issues Discovered in Code Review
+
+### 1. Missing `data-testid="onboarding-next"` on StepAge
+**File**: `src/components/onboarding/StepAge.tsx` (line ~62)
+**Issue**: The "Next / 下一步" button in StepAge lacks a `data-testid` attribute.
+**Impact**: Onboarding E2E test step "Select age-option-3, click onboarding-next" will fail.
+**Fix**: Add `data-testid="onboarding-next"` to the Next button in StepAge.
+
+### 2. Missing `data-testid="pin-pad"` on PinPad
+**File**: `src/components/ui/PinPad.tsx` (line 44)
+**Issue**: The outer `<div>` wrapper of PinPad has no `data-testid`.
+**Impact**: Parent dashboard E2E test "Expect [data-testid=pin-pad] visible" will fail.
+**Fix**: Add `data-testid="pin-pad"` to the outer wrapper div.
+
+### 3. SongPlayer.tsx exceeds 200 lines (235 lines)
+**File**: `src/components/activities/SongPlayer.tsx`
+**Issue**: 235 lines — violates the "no component file over 200 lines" rule.
+**Impact**: Sanity test checking component sizes will fail.
+**Fix**: Extract `SongLyricsPanel.tsx` (the `div.flex-1` lyrics section, ~50 lines of JSX) into its own component. SongPlayer shrinks to ~185 lines.
+
+### 4. Tap targets below 88px on HomeScreen
+**File**: `src/components/HomeScreen.tsx`
+- `start-session-btn`: `min-h-[64px]` = 64px height → **below 88px**
+- `parent-icon`: `w-12 h-12` = 48px × 48px → **below 88px**
+**Impact**: Sanity test checking `getBoundingClientRect` will fail.
+**Fix**:
+- `start-session-btn`: change to `min-h-[88px]`
+- `parent-icon`: change to `w-[88px] h-[88px]`
+
+### 5. streak-calendar conditional on sessions.length > 0
+**File**: `src/app/parent/dashboard/page.tsx` (line ~111)
+**Issue**: `StreakCalendar` only renders when `sessions.length > 0`. Parent dashboard test expects `[data-testid=streak-calendar]` visible.
+**Impact**: Test fails with empty DB.
+**Fix**: Seed a dummy completed session record in the DB seeding helper.
+
+---
+
+## Production-Readiness Checklist
+
+### 1. Persistence
+Tests verify IndexedDB persistence by performing `page.reload()` after onboarding and checking that the home screen still appears (not onboarding). The `seed-db.ts` helper writes to IndexedDB via `page.evaluate()` using the raw `indexedDB` browser API, which is the same storage mechanism used by the app. This is the correct persistence layer — no in-memory stores.
+
+### 2. Error Handling
+All activity pages have try/catch with error states. Parent dashboard shows error message on load failure. Parent PIN page shows "密码错误 / Wrong PIN (N/3)" on wrong PIN. The parent dashboard E2E test explicitly verifies the error state appears after a wrong PIN entry.
+
+### 3. Input Validation
+N/A — This task does not add new user input. Existing validation (StepName requires non-empty, StepAge requires selection, PinPad requires 4 digits, PIN comparison uses SHA-256) is tested implicitly by the E2E flows.
+
+### 4. Loading States
+N/A for new code — tests use Playwright's `waitFor` which respects loading states. The sanity test navigates to activity routes and waits for content to appear within `[data-testid]` containers.
+
+### 5. Empty States
+Parent dashboard already has an empty state ("No activity yet — start playing!"). The test seeds a session record so the dashboard shows the full view with streak-calendar. The empty state is separately verified by the sanity check: "navigating to /activities/explore-cards with no DB init shows a loading state, not a crash" — the loading state is tested.
+
+### 6. Security
+Sanity test explicitly verifies no hardcoded API keys (`OPENAI_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`) appear as literal strings in `src/`. The existing code stores PIN as SHA-256 hash — this is verified by the parent dashboard PIN flow test.
+
+### 7. Component Size
+SongPlayer.tsx at 235 lines is the only violation. Plan: extract `SongLyricsPanel.tsx` (~50 lines), bringing SongPlayer to ~185 lines. All other components are ≤200 lines. Sanity test will catch any future violations.
+
+### 8. Test Coverage
+- Happy path: All 4 user journeys (onboarding, session, free-play, parent-dashboard) covered with E2E tests.
+- Error scenario: Wrong PIN entry verified (parent-dashboard test).
+- Persistence: Page reload after onboarding verifies IndexedDB survives reload (onboarding test).
+- Cross-cutting: Sanity test covers hardcoded keys, component sizes, tap targets, aria-labels.
+
+---
+
+## Detailed Implementation Plan
+
+### Step 1: Create Branch
+```bash
+git checkout -b af/181-integration-verification-task-write-play/1
+```
+
+### Step 2: Install Playwright
+```bash
+npm install --save-dev @playwright/test
+npx playwright install chromium
+```
+Add to `package.json`:
+```json
+"test:e2e": "playwright test"
+```
+
+### Step 3: Fix StepAge.tsx
+Add `data-testid="onboarding-next"` to the Next button (currently missing, StepName has it but StepAge does not).
+
+### Step 4: Fix PinPad.tsx
+Change outer div from:
+```jsx
+<div className="flex flex-col items-center gap-6">
+```
+to:
+```jsx
+<div data-testid="pin-pad" className="flex flex-col items-center gap-6">
+```
+
+### Step 5: Fix HomeScreen.tsx Tap Targets
+1. `start-session-btn`: `min-h-[64px]` → `min-h-[88px]`
+2. `parent-icon`: `w-12 h-12` → `w-[88px] h-[88px]`
+
+### Step 6: Extract SongLyricsPanel.tsx
+Extract the scrollable lyrics section from SongPlayer.tsx into a new presentational component:
+
+```tsx
+// src/components/activities/SongLyricsPanel.tsx
+interface SongLyricsPanelProps {
+  lyrics: LyricLine[];
+  vocabulary: VocabularyWord[];
+  currentLineIndex: number;
+  activatedWordId: string | null;
+  onWordTap: (word: VocabularyWord) => void;
+}
+```
+
+The extracted component handles rendering all lyric lines with word chips. The `ref` for scroll-to-active-line is passed as a prop or handled via a callback. SongPlayer becomes ~185 lines after extraction.
+
+### Step 7: Create playwright.config.ts
+```typescript
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 30_000,
+  use: {
+    baseURL: 'http://localhost:3000',
+    viewport: { width: 375, height: 667 },
+    screenshot: 'only-on-failure',
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: true,
+    timeout: 60_000,
+  },
+});
+```
+
+### Step 8: Create tests/e2e/helpers/seed-db.ts
+Helper that:
+1. Uses `page.evaluate()` to open IndexedDB `'littlebridge'` (DB already initialized by first page navigation)
+2. Writes settings: `onboardingComplete='true'`, `childName='TestChild'`, `childAge=3`, `pinHash=<computed SHA-256 of '1234'>`
+3. Writes one dummy completed session (so streak-calendar is visible in parent dashboard)
+
+### Step 9: Create onboarding.spec.ts
+Test flow:
+1. `page.goto('/')` → expect URL `/onboarding`
+2. Expect `[data-testid=onboarding-welcome]` visible
+3. Click `[data-testid=onboarding-start]` (advance from welcome screen)
+4. Fill `[name=childName]` with 'TestChild'
+5. Click `[data-testid=onboarding-next]` (StepName)
+6. Click `[data-testid=age-option-3]`
+7. Click `[data-testid=onboarding-next]` (StepAge — needs testid fix)
+8. Click `pin-key-1`, `pin-key-2`, `pin-key-3`, `pin-key-4` (auto-submits after 4th)
+9. Expect `[data-testid=onboarding-done]` visible
+10. Click `[data-testid=onboarding-done]`
+11. Expect `[data-testid=home-screen]` visible
+12. Expect page to contain text 'TestChild'
+13. `page.reload()`
+14. Expect `[data-testid=home-screen]` still visible (IndexedDB persistence)
+
+### Step 10: Create session.spec.ts
+Test flow (with beforeEach DB seed):
+1. Seed DB (onboarding complete)
+2. `page.goto('/')` → `[data-testid=home-screen]` visible
+3. Click `[data-testid=start-session-btn]` → URL `/session`
+4. Expect `[data-testid=session-greeting]` visible
+5. Click `[data-testid=session-proceed-btn]` (skip 3s auto-timer)
+6. Expect `[data-testid=mood-check]` visible
+7. Click `[data-testid=mood-happy]`
+8. Expect `[data-testid=explore-cards]` visible (words loaded)
+9. Click `[data-testid=card-next-btn]` three times
+10. Expect `[data-testid=celebration-overlay]` visible
+11. Expect page to contain text 'learned' or '学了'
+
+### Step 11: Create free-play.spec.ts
+Test flow (with beforeEach DB seed):
+1. Navigate to `/`, click `activity-explore-cards` → `explore-cards` visible
+2. Click first `[data-testid=vocab-card]` → `audio-button` visible on that card
+3. Navigate to `/`, click `activity-matching-pairs` → `matching-pairs` visible
+4. Navigate to `/`, click `activity-listen-find` → `listen-and-find` visible
+5. Navigate to `/`, click `activity-song-time` → `song-time` visible
+
+### Step 12: Create parent-dashboard.spec.ts
+Test flow (with beforeEach DB seed):
+1. `page.goto('/parent')` → `[data-testid=pin-pad]` visible
+2. Enter wrong PIN: `pin-key-5` × 4 → error text visible
+3. Enter wrong PIN: `pin-key-6` × 4
+4. Enter correct PIN: `pin-key-1`, `pin-key-2`, `pin-key-3`, `pin-key-4`
+5. URL `/parent/dashboard`, `[data-testid=parent-dashboard]` visible
+6. `[data-testid=streak-calendar]` visible
+7. Click `[data-testid=word-row]`:first → `[data-testid=word-detail-sheet]` visible
+
+### Step 13: Create sanity.spec.ts
+Checks:
+1. **No hardcoded API keys**: Use Node `fs` to recursively read `src/` and check for literal `OPENAI_API_KEY` or `GOOGLE_APPLICATION_CREDENTIALS` string content. Fail if found.
+2. **No component >200 lines**: Use Node `fs.readdirSync` recursively on `src/components/` for `.tsx`/`.ts` files, count lines, fail if any exceeds 200.
+3. **Activity routes have content**: Navigate to each of the 4 activity routes and verify `[data-testid]` container is visible with non-empty text.
+4. **Audio buttons have aria-label**: For each `[data-testid=audio-button]`, check `getAttribute('aria-label')` is non-empty.
+5. **HomeScreen tap targets ≥88px**: For each of `[data-testid=start-session-btn]`, `[data-testid=parent-icon]`, and `[data-testid=activity-explore-cards]`, use `getBoundingClientRect()` and check `.height >= 88`.
+
+---
+
+## Risks & Open Questions
+
+1. **Risk: IndexedDB not initialized when test helper runs**
+   *Mitigation*: Navigate to `'/'` first; the `useDB()` hook and `getDB()` call will initialize the DB before the evaluate() seeding.
+
+2. **Risk: Playwright not yet installed (no `@playwright/test` in package.json)**
+   *Mitigation*: Install as first step; add `test:e2e` script; run `npx playwright install chromium`.
+
+3. **Risk: SongPlayer extraction breaks audio/lyric sync**
+   *Mitigation*: Keep all state variables (`currentLineIndex`, `activatedWordId`, `howlRef`, `rafRef`) in SongPlayer; SongLyricsPanel receives them as props with no own state.
+
+4. **Open question: Do E2E tests need to wait for vocabulary images to load?**
+   *Decision*: No. Images are set to `unoptimized: true` in next.config.ts. Tests check for element visibility, not image load state. Tests use `waitForSelector` with 30s timeout.
+
+5. **Open question: Session test — will GuidedSession always load exactly 3 words?**
+   *Decision*: GuidedSession loads `Math.min(pool.length, 3)` words. The vocabulary seed has 80+ words, so 3 words will always be selected. The test clicks `card-next-btn` 3 times to complete (clicking 3 times on 3 words triggers `onComplete` on the last click).
+
+6. **Risk: Parent dashboard redirect from /parent requires DB to have pinHash set**
+   *Mitigation*: DB seed helper sets pinHash to the SHA-256 of '1234', computed in browser context.
+
+---
+
+## File Count Summary
+- Files modified: 5 (StepAge, PinPad, HomeScreen, SongPlayer, package.json)
+- Files created: 8 (playwright.config.ts, seed-db.ts, 5 spec files, SongLyricsPanel.tsx)
+- Total changes: 13 files
