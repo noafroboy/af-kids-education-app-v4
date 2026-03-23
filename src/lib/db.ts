@@ -96,3 +96,11 @@ export async function getAllSongs(db: IDBPDatabase<LittleBridgeDB>): Promise<Son
 export async function putSong(db: IDBPDatabase<LittleBridgeDB>, song: Song): Promise<void> {
   await db.put('songs', song);
 }
+
+export async function clearProgress(db: IDBPDatabase<LittleBridgeDB>): Promise<void> {
+  await db.clear('progress');
+}
+
+export async function clearSessions(db: IDBPDatabase<LittleBridgeDB>): Promise<void> {
+  await db.clear('sessions');
+}

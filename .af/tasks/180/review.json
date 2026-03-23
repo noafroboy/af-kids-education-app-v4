@@ -1,0 +1,95 @@
+{
+  "verdict": "fail",
+  "dimensions": [
+    {
+      "name": "Requirements Met",
+      "score": 7,
+      "gaps_to_10": "Req 1: Child's name is NOT shown in the ParentLayout header area — it is only shown in the dashboard body stats section (the plan acknowledges this deviation but the requirement explicitly says 'child's name visible in ParentLayout header area'). The dashboard page never loads childName from the DB at all (no getSetting call for childName exists in dashboard/page.tsx), so the '{childName}\\'s Progress' text in the plan spec is also missing from the actual implementation. Req 7: Settings Reset Progress only clears 'progress' and 'sessions' stores — it does NOT clear 'settings', meaning the child's PIN hash and profile persist after a settings reset; the spec says full reset should also clear settings. However the PIN page Forgot PIN flow correctly clears all via putSetting onboardingComplete=false. Req 5: Input validation for child name (maxLength, trim) mentioned in the plan is not implemented — there is no maxLength attribute on the name input and no trim() call before putSetting."
+    },
+    {
+      "name": "Error Handling",
+      "score": 7,
+      "gaps_to_10": "ChangePinSection handleNewPin error is caught and console.error'd but no inline error message is shown to the user — the plan specifies 'save errors shown inline below each section's save button'. ParentSettings handleSaveProfile similarly swallows the error silently without rendering any error state. The dashboard error state renders an error message but offers no retry button despite the plan mentioning 'with retry hint'. ParentPage handlePinSubmit catch block does not show any UI error to the user when the crypto.verifyPIN call itself throws."
+    },
+    {
+      "name": "UX Completeness",
+      "score": 8,
+      "gaps_to_10": "Child name not visible in ParentLayout header or dashboard body (requirement 1 and plan spec for '{childName}\\'s Progress' / '{childName}的进度'). The ParentPin page shows a loading state guard only via the pinHash empty-string check (if (!pinHash) return) but there is no explicit 'Loading...' skeleton rendered while DB is loading — a user who arrives with no stored PIN (first-time or after reset) will see the PinPad immediately accepting input with no feedback, silently doing nothing. The plan spec says: 'if not set, redirect to /parent/dashboard (no PIN set yet)' but this redirect is missing — instead the page simply does nothing when pinHash is empty string."
+    },
+    {
+      "name": "Code Quality",
+      "score": 8,
+      "gaps_to_10": "All files are under 200 lines (largest is settings/page.tsx at 159 lines). The `db as never` type cast is used pervasively as a workaround — acceptable given the existing pattern but could be typed more cleanly. The StreakCalendar uses two separate label arrays indexed by the same labelIdx which creates implicit coupling; minor but readable. No React.memo on WordListRow — acceptable for P2. The dashboard state for progressMap uses a `Map<string, WordProgress>` which is an in-memory derived structure, but it is populated from DB on mount (not a primary persistent store), which is acceptable."
+    },
+    {
+      "name": "Test Coverage",
+      "score": 8,
+      "gaps_to_10": "No test for the case where pinHash is not set (empty string) when user navigates to /parent — this edge case (redirect to dashboard or show loading) is not covered. No test for ChangePinSection error scenarios (e.g., getSetting throws, putSetting throws). No test for the ParentSettings save error path. The ParentDashboard test does not test the error state rendering ('Failed to load data'). Test for 'shows streak calendar when sessions exist' only — no test for 'streak calendar is absent when no sessions'."
+    },
+    {
+      "name": "Security",
+      "score": 9,
+      "gaps_to_10": "No hardcoded secrets. PIN is hashed with existing crypto.ts SHA-256+salt. The child name input does not enforce maxLength=30 in the DOM (plan spec says it should), which is a minor validation gap but not a security vulnerability in this offline-only app. No XSS risk since user input is stored to IndexedDB and rendered via React (auto-escaping). Minor: console.error outputs are used throughout — they should not leak sensitive data (they only log error objects)."
+    }
+  ],
+  "average_score": 7.83,
+  "issues": [
+    {
+      "severity": "P1",
+      "file": "src/app/parent/dashboard/page.tsx",
+      "description": "Child's name is never loaded from the database. The dashboard/page.tsx has no getSetting call and no childName state variable. The requirement states 'child's name visible in ParentLayout header area' and the plan spec describes rendering '{childName}\\'s Progress / {childName}的进度'. Both are entirely absent from the implementation.",
+      "fix_guidance": "The correct approach is to add getSetting(db, 'childName') to the Promise.all in the dashboard useEffect, store it in a childName state variable, and render it in the stats section (e.g., <p>{childName ? `${childName}的进度 / ${childName}\\'s Progress` : ''}</p>). The ParentLayout header title could also receive the child name via the title prop if the requirement specifically needs it in the header.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P1",
+      "file": "src/app/parent/page.tsx",
+      "description": "When pinHash is not set (e.g., onboarding just completed or DB is freshly cleared), the page renders the PinPad but silently does nothing when the user enters any PIN (because handlePinSubmit returns early when !pinHash). The plan specifies: 'if not set, redirect to /parent/dashboard (no PIN set yet — defensive)'. This means a user arriving at /parent after onboarding will see a PIN entry screen that never responds.",
+      "fix_guidance": "The correct approach is to check after the DB load completes: if pinHash is empty string (meaning no PIN was set), call router.replace('/parent/dashboard') immediately. A brief loading state should also be shown while the DB read is in-flight, rather than rendering the PinPad before pinHash is known.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P1",
+      "file": "src/components/parent/ChangePinSection.tsx",
+      "description": "The handleNewPin function (step: 'newPin') does not show any error message to the user when putSetting or hashPIN throws — the catch block only console.error's. The user gets no feedback that the PIN change failed. Silently failing a security-critical operation is a user-visible bug (the user believes the PIN was changed when it was not).",
+      "fix_guidance": "The correct approach is to add an error state (e.g., setErrorMsg('Failed to save PIN / 保存失败')) inside the catch block of handleNewPin so the user sees feedback when the save fails. The same apply to any DB-write operation that must confirm success to the user.",
+      "checklist_item": "error_handling"
+    },
+    {
+      "severity": "P2",
+      "file": "src/app/parent/settings/page.tsx",
+      "description": "The child name input has no maxLength attribute and the value is not trimmed before calling putSetting. The plan specifies trim() + maxLength=30 enforcement. Without this, a parent can store a 10,000-character child name, which would be shown in the home screen greeting.",
+      "fix_guidance": "The correct approach is to add maxLength={30} to the <input> element and call childName.trim() before passing to putSetting in handleSaveProfile.",
+      "checklist_item": "ux"
+    },
+    {
+      "severity": "P2",
+      "file": "src/app/parent/settings/page.tsx",
+      "description": "The handleSaveProfile error catch block only calls console.error — no inline error state is rendered. The plan specifies 'save errors shown inline below each section's save button'.",
+      "fix_guidance": "The correct approach is to add a saveError state string that is set in the catch block and rendered as a <p className='text-red-500 text-sm'>{saveError}</p> below the Save button.",
+      "checklist_item": "error_handling"
+    },
+    {
+      "severity": "P2",
+      "file": "src/app/parent/dashboard/page.tsx",
+      "description": "The error state renders the error message but has no retry button or mechanism. The plan specifies 'with retry hint'. This is a minor UX gap that does not cause a crash but leaves the user without a path to recover.",
+      "fix_guidance": "The correct approach is to add a 'Retry / 重试' button in the error render that calls router.refresh() or re-triggers the data load effect (e.g., by toggling a retryCount state dependency).",
+      "checklist_item": "ux"
+    },
+    {
+      "severity": "P2",
+      "file": "src/__tests__/ParentDashboard.test.tsx",
+      "description": "The test suite does not include a test for the error state — no test verifies that 'Failed to load data / 加载失败' is shown when getAllWords, getAllSessions, etc. reject. The plan lists this as a required state to cover.",
+      "fix_guidance": "The correct approach is to add a test that sets mockGetAllWords.mockRejectedValue(new Error('db error')) and expects screen.getByText(/Failed to load data/).",
+      "checklist_item": "test_quality"
+    },
+    {
+      "severity": "P2",
+      "file": "src/__tests__/ParentPin.test.tsx",
+      "description": "No test for the edge case where pinHash is not set in the DB (getSetting returns undefined). This is the post-onboarding navigation path that triggers the redirect-to-dashboard defensive behavior (which is itself currently broken — see P1 above).",
+      "fix_guidance": "The correct approach is to add a test that mocks mockGetSetting to return undefined and asserts that mockReplace is called with '/parent/dashboard'.",
+      "checklist_item": "test_quality"
+    }
+  ],
+  "summary": "The parent area implementation is largely complete and well-structured. ParentLayout, StreakCalendar, WordListRow, WordDetailSheet, ChangePinSection, and all six test files are created as planned. PIN entry with shake/lockout/forgot-flow, dashboard with stats+calendar+filter+word detail sheet, and settings with profile/change-PIN/reset-progress all function correctly for the happy path. Two P1 issues prevent passing: (1) the child's name is never loaded or displayed anywhere in the dashboard — the dashboard/page.tsx has no getSetting call for childName at all, violating requirement 1; (2) the PIN gate page silently does nothing when no PIN is set (post-onboarding navigation), missing the defensive redirect specified in the plan. These must be fixed before the feature is production-ready. Five P2 issues cover missing input validation, silent error failures, and test coverage gaps."
+}
