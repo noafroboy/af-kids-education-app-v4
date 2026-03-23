@@ -1,0 +1,97 @@
+import { Howl } from 'howler';
+import type { VocabularyWord } from '@/types';
+
+type SfxName = 'correct' | 'incorrect' | 'celebration' | 'whoosh' | 'card-flip' | 'tap';
+
+class AudioManager {
+  private iOSUnlocked = false;
+  private isPlaying = false;
+  private error = false;
+  private cache: Map<string, Howl> = new Map();
+
+  unlockAudioContext(): void {
+    if (this.iOSUnlocked) return;
+    try {
+      const AudioContext = window.AudioContext || (window as never)['webkitAudioContext'];
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        this.iOSUnlocked = true;
+      }
+    } catch {
+      console.warn('[AudioManager] Could not unlock AudioContext');
+    }
+  }
+
+  private getOrCreate(path: string): Howl {
+    if (!this.cache.has(path)) {
+      const howl = new Howl({
+        src: [path],
+        html5: true,
+        onloaderror: (_id: number, err: unknown) => {
+          console.warn(`[AudioManager] Load error for ${path}:`, err);
+          this.error = true;
+        },
+      });
+      this.cache.set(path, howl);
+    }
+    return this.cache.get(path)!;
+  }
+
+  playWord(enPath: string, zhPath: string): Promise<void> {
+    this.isPlaying = true;
+    return new Promise((resolve) => {
+      const enHowl = this.getOrCreate(enPath);
+      enHowl.once('end', () => {
+        setTimeout(() => {
+          const zhHowl = this.getOrCreate(zhPath);
+          zhHowl.once('end', () => {
+            this.isPlaying = false;
+            resolve();
+          });
+          zhHowl.once('loaderror', () => {
+            this.isPlaying = false;
+            resolve();
+          });
+          zhHowl.play();
+        }, 800);
+      });
+      enHowl.once('loaderror', () => {
+        this.isPlaying = false;
+        resolve();
+      });
+      enHowl.play();
+    });
+  }
+
+  playEffect(name: SfxName): void {
+    const path = `/audio/sfx/${name}.mp3`;
+    try {
+      const howl = this.getOrCreate(path);
+      howl.play();
+    } catch {
+      console.warn(`[AudioManager] Could not play effect: ${name}`);
+    }
+  }
+
+  preloadWords(words: VocabularyWord[]): void {
+    for (const word of words) {
+      this.getOrCreate(word.audioEnPath);
+      this.getOrCreate(word.audioZhPath);
+    }
+  }
+
+  get hasError(): boolean {
+    return this.error;
+  }
+
+  get playing(): boolean {
+    return this.isPlaying;
+  }
+}
+
+export const audioManager = new AudioManager();
