@@ -1,0 +1,295 @@
+{
+  "approach": "A",
+  "approach_rationale": "Approach A (Conservative / output:export) chosen: entire app is client-side with IndexedDB; static export matches the use-case perfectly, eliminates SSR complexity, and reduces build risk. output:'standalone' would add unnecessary Node.js server overhead for a wholly browser-side app.",
+
+  "persistence_strategy": "IndexedDB via idb library, openDB('littlebridge', 1). Five object stores: vocabulary, progress, settings, sessions, songs. All user data (childName, childAge, pinHash, onboardingComplete, word progress, sessions) written to IndexedDB on every mutation. Singleton DB hook ensures one connection across the app. No in-memory primary stores — DB is source of truth.",
+
+  "error_handling_approach": "Every DB call wrapped in try/catch; errors surface as user-visible state (error component or toast fallback). Audio errors are non-fatal: console.warn + audioError boolean flag shown as disabled AudioButton. Image 404s → graceful placeholder via onError handler on Next/Image. Route-level errors caught by src/app/error.tsx (client ErrorBoundary). 404s caught by src/app/not-found.tsx.",
+
+  "files_to_modify": [],
+
+  "files_to_create": [
+    "package.json",
+    "tsconfig.json",
+    "next.config.ts",
+    "tailwind.config.ts",
+    "postcss.config.mjs",
+    "jest.config.ts",
+    "jest.setup.ts",
+    "src/types/index.ts",
+    "src/lib/utils.ts",
+    "src/lib/crypto.ts",
+    "src/lib/vocabulary-seed.ts",
+    "src/lib/songs-seed.ts",
+    "src/lib/db.ts",
+    "src/lib/progress.ts",
+    "src/lib/audio.ts",
+    "src/hooks/useDB.ts",
+    "src/hooks/useProgress.ts",
+    "src/hooks/useAudio.ts",
+    "src/app/globals.css",
+    "src/app/layout.tsx",
+    "src/app/page.tsx",
+    "src/app/error.tsx",
+    "src/app/not-found.tsx",
+    "src/app/onboarding/page.tsx",
+    "src/app/activities/explore-cards/page.tsx",
+    "src/components/ui/ProgressBar.tsx",
+    "src/components/ui/PinPad.tsx",
+    "src/components/ui/AudioButton.tsx",
+    "src/components/ui/VocabularyCard.tsx",
+    "src/components/ui/CelebrationOverlay.tsx",
+    "src/components/layouts/ChildLayout.tsx",
+    "src/components/onboarding/StepWelcome.tsx",
+    "src/components/onboarding/StepName.tsx",
+    "src/components/onboarding/StepAge.tsx",
+    "src/components/onboarding/StepPin.tsx",
+    "src/components/onboarding/StepHandoff.tsx",
+    "src/components/HomeScreen.tsx",
+    "src/components/activities/ExploreCards.tsx",
+    "public/images/placeholder.png",
+    "src/__tests__/utils.test.ts",
+    "src/__tests__/crypto.test.ts",
+    "src/__tests__/PinPad.test.tsx",
+    "src/__tests__/VocabularyCard.test.tsx",
+    "src/__tests__/CelebrationOverlay.test.tsx",
+    "src/__tests__/ExploreCards.test.tsx"
+  ],
+
+  "steps": [
+    {
+      "id": 1,
+      "title": "Initialize project files",
+      "description": "Create package.json with all required deps (idb, howler, framer-motion, canvas-confetti, clsx, tailwind-merge, sharp), tsconfig.json, run npm install.",
+      "files": ["package.json", "tsconfig.json"]
+    },
+    {
+      "id": 2,
+      "title": "Build & CSS config",
+      "description": "Create next.config.ts (output:'export', images.unoptimized:true, no telemetry), tailwind.config.ts (custom palette, Nunito+Fredoka fonts, custom keyframes), postcss.config.mjs, jest.config.ts, jest.setup.ts.",
+      "files": ["next.config.ts", "tailwind.config.ts", "postcss.config.mjs", "jest.config.ts", "jest.setup.ts"]
+    },
+    {
+      "id": 3,
+      "title": "TypeScript types",
+      "description": "Define all types: VocabularyWord, WordProgress, Setting, Session, Song, LyricLine, Category, ActivityType, MasteryLevel, MoodType.",
+      "files": ["src/types/index.ts"]
+    },
+    {
+      "id": 4,
+      "title": "Utility libraries",
+      "description": "cn() clsx+tailwind-merge, shuffleArray, formatDate, slugify in utils.ts. hashPIN + verifyPIN using Web Crypto in crypto.ts.",
+      "files": ["src/lib/utils.ts", "src/lib/crypto.ts"]
+    },
+    {
+      "id": 5,
+      "title": "Data seeds + DB layer",
+      "description": "vocabulary-seed.ts: 20 VocabularyWords across 4 categories. songs-seed.ts: empty stub array. db.ts: openDB with 5 stores + typed helpers. DB helper functions all return typed values with error handling.",
+      "files": ["src/lib/vocabulary-seed.ts", "src/lib/songs-seed.ts", "src/lib/db.ts"]
+    },
+    {
+      "id": 6,
+      "title": "Progress + Audio libs",
+      "description": "progress.ts: updateWordProgress (mastery levels), getWeeklyStats, recordSession. audio.ts: AudioManager class wrapping Howler, singleton export, iOS unlock logic.",
+      "files": ["src/lib/progress.ts", "src/lib/audio.ts"]
+    },
+    {
+      "id": 7,
+      "title": "React hooks",
+      "description": "useDB: singleton DB open. useProgress: wraps progress lib. useAudio: wraps AudioManager, attaches iOS unlock listener on mount.",
+      "files": ["src/hooks/useDB.ts", "src/hooks/useProgress.ts", "src/hooks/useAudio.ts"]
+    },
+    {
+      "id": 8,
+      "title": "App shell",
+      "description": "globals.css (Tailwind imports + CSS vars + touch tweaks). layout.tsx (Nunito+Fredoka One via next/font, html lang=zh-CN, viewport meta, bilingual metadata). error.tsx. not-found.tsx.",
+      "files": ["src/app/globals.css", "src/app/layout.tsx", "src/app/error.tsx", "src/app/not-found.tsx"]
+    },
+    {
+      "id": 9,
+      "title": "UI primitives",
+      "description": "ProgressBar (Framer Motion animated fill). PinPad (3x4 grid, 4-circle display, backspace, auto-submit at 4 digits, shake on error). AudioButton (88px circular, pulse-ring animation, error state). VocabularyCard (Next/Image with placeholder fallback, 3 text levels, Framer Motion tap). CelebrationOverlay (canvas-confetti on mount, star stagger, bilingual text, two action buttons).",
+      "files": [
+        "src/components/ui/ProgressBar.tsx",
+        "src/components/ui/PinPad.tsx",
+        "src/components/ui/AudioButton.tsx",
+        "src/components/ui/VocabularyCard.tsx",
+        "src/components/ui/CelebrationOverlay.tsx"
+      ]
+    },
+    {
+      "id": 10,
+      "title": "ChildLayout",
+      "description": "Max-w-428px wrapper. Fixed coral home button (88px, bottom-right, z-50) hidden on '/' via usePathname. Children prop + showHomeButton prop.",
+      "files": ["src/components/layouts/ChildLayout.tsx"]
+    },
+    {
+      "id": 11,
+      "title": "Onboarding step components",
+      "description": "Extract each of the 5 wizard steps into separate components to keep onboarding/page.tsx under 150 lines.",
+      "files": [
+        "src/components/onboarding/StepWelcome.tsx",
+        "src/components/onboarding/StepName.tsx",
+        "src/components/onboarding/StepAge.tsx",
+        "src/components/onboarding/StepPin.tsx",
+        "src/components/onboarding/StepHandoff.tsx"
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Onboarding page",
+      "description": "AnimatePresence wizard controller. State machine: step 0-4. Stores form data across steps. On step 5 completion: writes all settings to IndexedDB, navigates to /.",
+      "files": ["src/app/onboarding/page.tsx"]
+    },
+    {
+      "id": 13,
+      "title": "HomeScreen + root page",
+      "description": "HomeScreen: greeting, 2x2 activity grid, start-session CTA, daily word count, panda mascot stub. Root page: reads onboardingComplete from DB, shows HomeScreen or redirects to /onboarding, loading spinner during check.",
+      "files": ["src/components/HomeScreen.tsx", "src/app/page.tsx"]
+    },
+    {
+      "id": 14,
+      "title": "ExploreCards activity",
+      "description": "ExploreCards component: loads 6 random words from DB, one card at a time, progress dots, audio on tap, tracks seen words, records session, triggers CelebrationOverlay on completion. explore-cards page.tsx wraps component in ChildLayout.",
+      "files": [
+        "src/components/activities/ExploreCards.tsx",
+        "src/app/activities/explore-cards/page.tsx"
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Public assets",
+      "description": "Create public/images/placeholder.png (1px coral-tinted PNG) and public/images/vocabulary/ directory placeholder. Audio dirs noted but not seeded (Task 1 scope note).",
+      "files": ["public/images/placeholder.png"]
+    },
+    {
+      "id": 16,
+      "title": "Tests",
+      "description": "Write tests: utils.test.ts, crypto.test.ts, PinPad.test.tsx, VocabularyCard.test.tsx, CelebrationOverlay.test.tsx, ExploreCards.test.tsx. Run npm test to verify.",
+      "files": [
+        "src/__tests__/utils.test.ts",
+        "src/__tests__/crypto.test.ts",
+        "src/__tests__/PinPad.test.tsx",
+        "src/__tests__/VocabularyCard.test.tsx",
+        "src/__tests__/CelebrationOverlay.test.tsx",
+        "src/__tests__/ExploreCards.test.tsx"
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Final checks + push",
+      "description": "Run npm test. Fix any failures. git add, commit, push branch.",
+      "files": []
+    }
+  ],
+
+  "expected_tests": [
+    {
+      "file": "src/__tests__/utils.test.ts",
+      "cases": [
+        "cn() merges class names",
+        "cn() handles tailwind conflicts",
+        "shuffleArray returns same elements in different order",
+        "shuffleArray does not mutate input array",
+        "formatDate returns YYYY-MM-DD string",
+        "slugify lowercases and replaces spaces"
+      ]
+    },
+    {
+      "file": "src/__tests__/crypto.test.ts",
+      "cases": [
+        "hashPIN returns non-empty hex string",
+        "hashPIN same input → same hash",
+        "hashPIN different input → different hash",
+        "verifyPIN returns true for correct PIN",
+        "verifyPIN returns false for wrong PIN"
+      ]
+    },
+    {
+      "file": "src/__tests__/PinPad.test.tsx",
+      "cases": [
+        "renders 12 keys (0-9 + * + #)",
+        "digit buttons have data-testid pin-key-{n}",
+        "each digit button is at least 88px (min-w/h class present)",
+        "onSubmit called after 4th digit entered",
+        "backspace clears last digit",
+        "does not show actual digits in display"
+      ]
+    },
+    {
+      "file": "src/__tests__/VocabularyCard.test.tsx",
+      "cases": [
+        "renders data-testid vocab-card",
+        "displays English word",
+        "displays Mandarin word",
+        "displays pinyin",
+        "renders AudioButton",
+        "renders image with fallback on error"
+      ]
+    },
+    {
+      "file": "src/__tests__/CelebrationOverlay.test.tsx",
+      "cases": [
+        "renders data-testid celebration-overlay",
+        "displays childName prop",
+        "displays wordCount prop",
+        "renders Go Home button",
+        "renders Play More button",
+        "Go Home button navigates to /"
+      ]
+    },
+    {
+      "file": "src/__tests__/ExploreCards.test.tsx",
+      "cases": [
+        "renders data-testid explore-cards",
+        "renders first vocab card",
+        "card-next-btn advances to next word",
+        "last card shows Done button",
+        "completion shows CelebrationOverlay"
+      ]
+    }
+  ],
+
+  "risk_areas": [
+    {
+      "risk": "Tailwind CSS v4 vs v3 syntax conflict",
+      "description": "Task specifies Tailwind v4 but also describes tailwind.config.ts (v3 pattern) and @tailwind base/components/utilities (v3 syntax). Resolution: use Tailwind v4 CSS-first approach with @import 'tailwindcss' in globals.css and define custom theme via @theme directive; also create tailwind.config.ts as v4-compatible config file used via @config directive.",
+      "severity": "medium"
+    },
+    {
+      "risk": "IndexedDB unavailable during Next.js static build",
+      "description": "output:'export' generates HTML at build time; any code that calls window/indexedDB at module level will crash the build. Resolution: all DB access is inside 'use client' components, only called in useEffect/event handlers, never at module top-level or in server components.",
+      "severity": "high"
+    },
+    {
+      "risk": "Howler.js SSR crash",
+      "description": "Howler accesses window on import. Resolution: dynamic import Howler inside AudioManager constructor, check typeof window !== 'undefined' guard.",
+      "severity": "high"
+    },
+    {
+      "risk": "canvas-confetti SSR crash",
+      "description": "canvas-confetti requires DOM canvas. Resolution: dynamic import inside CelebrationOverlay's useEffect (client-only), wrapped in 'use client'.",
+      "severity": "medium"
+    },
+    {
+      "risk": "next/font not supported with output:export in some Next.js 15 versions",
+      "description": "next/font/google requires network access or font files. Resolution: configure next/font with display:swap and fallback fonts; fonts download at build time.",
+      "severity": "low"
+    },
+    {
+      "risk": "Component file size (onboarding wizard)",
+      "description": "Onboarding has 5 steps. If inline, page.tsx would exceed 200 lines. Resolution: extract each step to src/components/onboarding/Step*.tsx files.",
+      "severity": "medium"
+    },
+    {
+      "risk": "iOS AudioContext auto-play policy",
+      "description": "iOS Safari requires a user gesture before AudioContext can play. Resolution: audioManager.unlockAudioContext() called in onboarding Step 1 'Get Started' click handler; useAudio hook attaches window click listener on iOS detected.",
+      "severity": "medium"
+    },
+    {
+      "risk": "Missing audio/image assets",
+      "description": "All 20 vocabulary word audio and image files are referenced but not yet created. Resolution: VocabularyCard uses Next/Image blurDataURL + onError fallback to /images/placeholder.png; AudioButton shows error state on Howler load failure without crashing.",
+      "severity": "low"
+    }
+  ]
+}
