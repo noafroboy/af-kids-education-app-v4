@@ -1,30 +1,48 @@
 import type { IDBPDatabase } from 'idb';
-import { getProgress, putProgress, getAllProgress, addSession, getAllSessions } from './db';
+import { getAllProgress, addSession, getAllSessions } from './db';
 import { formatDate } from './utils';
-import type { Session, MasteryLevel } from '@/types';
+import type { Session, MasteryLevel, WordProgress } from '@/types';
+
+type ProgressTx = {
+  store: {
+    get: (k: string) => Promise<WordProgress | undefined>;
+    put: (v: WordProgress) => Promise<IDBValidKey>;
+  };
+  done: Promise<void>;
+  abort: () => void;
+};
 
 export async function updateWordProgress(
   db: IDBPDatabase,
   wordId: string,
   wasCorrect: boolean
 ): Promise<void> {
-  const existing = await getProgress(db as never, wordId);
-  const now = new Date().toISOString();
-  const seenCount = (existing?.seenCount ?? 0) + 1;
-  const correctCount = (existing?.correctCount ?? 0) + (wasCorrect ? 1 : 0);
+  // Use a readwrite transaction to prevent interleaved reads/writes on rapid consecutive calls
+  const dbAny = db as unknown as { transaction: (store: string, mode: string) => ProgressTx };
+  const tx = dbAny.transaction('progress', 'readwrite');
+  try {
+    const existing = await tx.store.get(wordId);
+    const now = new Date().toISOString();
+    const seenCount = (existing?.seenCount ?? 0) + 1;
+    const correctCount = (existing?.correctCount ?? 0) + (wasCorrect ? 1 : 0);
 
-  let masteryLevel: MasteryLevel = existing?.masteryLevel ?? 0;
-  if (masteryLevel === 0) masteryLevel = 1;
-  if (masteryLevel === 1 && correctCount >= 3) masteryLevel = 2;
-  if (masteryLevel === 2 && correctCount >= 8) masteryLevel = 3;
+    let masteryLevel: MasteryLevel = existing?.masteryLevel ?? 0;
+    if (masteryLevel === 0) masteryLevel = 1;
+    if (masteryLevel === 1 && correctCount >= 3) masteryLevel = 2;
+    if (masteryLevel === 2 && correctCount >= 8) masteryLevel = 3;
 
-  await putProgress(db as never, {
-    wordId,
-    seenCount,
-    correctCount,
-    masteryLevel,
-    lastSeenAt: now,
-  });
+    await tx.store.put({
+      wordId,
+      seenCount,
+      correctCount,
+      masteryLevel,
+      lastSeenAt: now,
+    });
+    await tx.done;
+  } catch (err) {
+    tx.abort();
+    throw err;
+  }
 }
 
 export async function getWeeklyStats(db: IDBPDatabase): Promise<{

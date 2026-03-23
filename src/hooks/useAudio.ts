@@ -26,10 +26,15 @@ export function useAudio() {
     });
   }
 
+  function playWordEn(enPath: string): void {
+    audioManager.playWordEn(enPath);
+    if (audioManager.hasError) setAudioError(true);
+  }
+
   function playEffect(name: 'correct' | 'incorrect' | 'celebration' | 'whoosh' | 'card-flip' | 'tap'): void {
     audioManager.playEffect(name);
     if (audioManager.hasError) setAudioError(true);
   }
 
-  return { playWord, playEffect, isPlaying, audioError };
+  return { playWord, playWordEn, playEffect, isPlaying, audioError };
 }

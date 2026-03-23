@@ -68,6 +68,15 @@ class AudioManager {
     });
   }
 
+  playWordEn(enPath: string): void {
+    try {
+      const howl = this.getOrCreate(enPath);
+      howl.play();
+    } catch {
+      console.warn(`[AudioManager] Could not play word: ${enPath}`);
+    }
+  }
+
   playEffect(name: SfxName): void {
     const path = `/audio/sfx/${name}.mp3`;
     try {

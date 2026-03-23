@@ -1,16 +1,116 @@
-import Link from 'next/link';
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useDB } from '@/hooks/useDB';
+import { getAllWords, getSetting } from '@/lib/db';
+import { shuffleArray } from '@/lib/utils';
+import { ChildLayout } from '@/components/layouts/ChildLayout';
+import { ListenAndFind } from '@/components/activities/ListenAndFind';
+import { CelebrationOverlay } from '@/components/ui/CelebrationOverlay';
+import { useRouter } from 'next/navigation';
+import type { VocabularyWord } from '@/types';
 
 export default function ListenFindPage() {
+  const db = useDB();
+  const router = useRouter();
+  const [words, setWords] = useState<VocabularyWord[]>([]);
+  const [age, setAge] = useState(4);
+  const [childName, setChildName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const [correctFirst, setCorrectFirst] = useState(0);
+  const [gameKey, setGameKey] = useState(0);
+
+  const loadWords = useCallback(async () => {
+    if (!db) return;
+    setIsLoading(true);
+    setError(false);
+    try {
+      const [all, ageSetting, nameSetting] = await Promise.all([
+        getAllWords(db as never),
+        getSetting(db as never, 'childAge'),
+        getSetting(db as never, 'childName'),
+      ]);
+      const picked = shuffleArray(all).slice(0, Math.min(6, all.length));
+      setWords(picked);
+      if (ageSetting?.value) setAge(Number(ageSetting.value));
+      if (nameSetting?.value) setChildName(String(nameSetting.value));
+    } catch {
+      setError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [db]);
+
+  useEffect(() => {
+    loadWords();
+  }, [loadWords]);
+
+  function handleComplete(stats: { correctFirst: number }) {
+    setCorrectFirst(stats.correctFirst);
+    setComplete(true);
+  }
+
+  function handlePlayAgain() {
+    setComplete(false);
+    setGameKey((k) => k + 1);
+    loadWords();
+  }
+
+  if (isLoading) {
+    return (
+      <ChildLayout>
+        <div className="min-h-screen bg-[#FFF9F0] flex items-center justify-center">
+          <div className="text-6xl animate-float">🐼</div>
+        </div>
+      </ChildLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <ChildLayout>
+        <div className="min-h-screen bg-[#FFF9F0] flex flex-col items-center justify-center gap-4 p-8">
+          <p className="text-xl text-slate-500 text-center">
+            Could not load words. / 无法加载词语。
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-8 py-4 bg-[#FF6B35] text-white rounded-2xl font-bold text-lg"
+          >
+            Go Home / 回家
+          </button>
+        </div>
+      </ChildLayout>
+    );
+  }
+
+  if (words.length === 0) {
+    return (
+      <ChildLayout>
+        <div className="min-h-screen bg-[#FFF9F0] flex flex-col items-center justify-center gap-4 p-8">
+          <p className="text-xl text-slate-500 text-center">No words found. / 没有找到词语。</p>
+        </div>
+      </ChildLayout>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#FFF9F0] flex flex-col items-center justify-center gap-6 p-8">
-      <span className="text-8xl">👂</span>
-      <h1 className="text-3xl font-bold text-[#4ECDC4] text-center">
-        Listen & Find<br /><span className="text-2xl">听一听</span>
-      </h1>
-      <p className="text-slate-500 text-center">Coming soon! / 即将推出！</p>
-      <Link href="/" className="px-8 py-4 bg-[#FF6B35] text-white rounded-2xl font-bold text-lg">
-        Go Home / 回家
-      </Link>
-    </div>
+    <ChildLayout>
+      {complete && (
+        <CelebrationOverlay
+          childName={childName}
+          wordCount={correctFirst}
+          onPlayMore={handlePlayAgain}
+        />
+      )}
+      <ListenAndFind
+        key={gameKey}
+        wordList={words}
+        age={age}
+        onComplete={handleComplete}
+      />
+    </ChildLayout>
   );
 }
