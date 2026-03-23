@@ -1,0 +1,217 @@
+{
+  "task_id": 179,
+  "title": "Guided Session Flow, MascotIdle, MoodCheck, CategorySelector, Idle Timeout",
+  "approach": "A_conservative",
+  "files_to_create": [
+    {
+      "path": "src/hooks/useIdleTimeout.ts",
+      "purpose": "Custom hook: listens to window pointer/keyboard events, fires onIdle30 after 30s and onIdle60 after 60s of inactivity; disabled via enabled=false on home screen",
+      "estimated_lines": 55
+    },
+    {
+      "path": "src/components/ui/MascotIdle.tsx",
+      "purpose": "Panda mascot component with inline SVG face, Framer Motion float (up-down loop) and blink (every 3s) animations, speech bubble, size/showBubble/onClick props",
+      "estimated_lines": 135
+    },
+    {
+      "path": "src/components/MoodCheck.tsx",
+      "purpose": "3-emoji mood selector (😊😐😴) with bilingual labels and Framer Motion tap animations; calls onMoodSelected(mood)",
+      "estimated_lines": 65
+    },
+    {
+      "path": "src/components/CategorySelector.tsx",
+      "purpose": "2-column grid of category tiles with emoji, EN/ZH labels, word count badge; All Categories tile at top-left; calls onSelect(category | 'all')",
+      "estimated_lines": 85
+    },
+    {
+      "path": "src/components/session/GreetingStep.tsx",
+      "purpose": "Step 0 of GuidedSession: MascotIdle size=lg, bilingual heading, auto-advance timer, Let's Go button; extracted to keep GuidedSession under 150 lines",
+      "estimated_lines": 55
+    },
+    {
+      "path": "src/components/GuidedSession.tsx",
+      "purpose": "4-step guided session flow (Greeting→MoodCheck→ExploreCards→Celebration) using AnimatePresence slide transitions; manages state, fetches unmastered words from DB, records session",
+      "estimated_lines": 145
+    },
+    {
+      "path": "src/__tests__/useIdleTimeout.test.ts",
+      "purpose": "Tests for idle timeout hook: enabled/disabled, timer callbacks at 30s/60s, cleanup on unmount, reset on events"
+    },
+    {
+      "path": "src/__tests__/MascotIdle.test.tsx",
+      "purpose": "Tests: renders with data-testid, float animation present, speech bubble shown/hidden, onClick fires"
+    },
+    {
+      "path": "src/__tests__/MoodCheck.test.tsx",
+      "purpose": "Tests: renders 3 mood buttons with correct data-testids, onMoodSelected called with correct mood value"
+    },
+    {
+      "path": "src/__tests__/CategorySelector.test.tsx",
+      "purpose": "Tests: renders all category tiles, All Categories tile present, onSelect called with correct category"
+    },
+    {
+      "path": "src/__tests__/GuidedSession.test.tsx",
+      "purpose": "Tests: renders greeting step initially, proceeds to mood check, mood selection advances to explore, celebrate step shown after explore complete"
+    }
+  ],
+  "files_to_modify": [
+    {
+      "path": "src/components/layouts/ChildLayout.tsx",
+      "changes": [
+        "Add useState for showMascotBubble",
+        "Add useRouter for idle60 navigation",
+        "Wire useIdleTimeout: enabled=!isHome, onIdle30=setShowMascotBubble(true), onIdle60=router.push('/')",
+        "Add MascotIdle in bottom-left corner (size='sm', showBubble, onClick clears bubble)",
+        "Add onPointerDown on root div to reset mascotBubble"
+      ],
+      "estimated_lines_after": 55
+    },
+    {
+      "path": "src/app/session/page.tsx",
+      "changes": [
+        "Replace placeholder with 'use client' page",
+        "Wrap GuidedSession in ChildLayout (showHomeButton=true)"
+      ],
+      "estimated_lines_after": 15
+    },
+    {
+      "path": "src/components/activities/ExploreCards.tsx",
+      "changes": [
+        "Add onComplete?: () => void to ExploreCardsProps",
+        "In handleNext on last card: if onComplete provided, call it instead of setComplete(true) + saveSession"
+      ],
+      "estimated_lines_after": 165,
+      "note": "Existing tests unaffected since they don't pass onComplete"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "action": "Create git branch af/179-build-the-guided-session-flow-the-primar/1"
+    },
+    {
+      "order": 2,
+      "action": "Implement useIdleTimeout hook"
+    },
+    {
+      "order": 3,
+      "action": "Implement MascotIdle component (SVG panda, float/blink animations, speech bubble)"
+    },
+    {
+      "order": 4,
+      "action": "Add onComplete prop to ExploreCards (minimal change)"
+    },
+    {
+      "order": 5,
+      "action": "Update ChildLayout with idle timeout + MascotIdle"
+    },
+    {
+      "order": 6,
+      "action": "Implement MoodCheck component"
+    },
+    {
+      "order": 7,
+      "action": "Implement CategorySelector component"
+    },
+    {
+      "order": 8,
+      "action": "Implement GreetingStep sub-component"
+    },
+    {
+      "order": 9,
+      "action": "Implement GuidedSession component (4-step flow, DB word selection, session recording)"
+    },
+    {
+      "order": 10,
+      "action": "Update session/page.tsx to use GuidedSession"
+    },
+    {
+      "order": 11,
+      "action": "Write tests for all new/modified components"
+    },
+    {
+      "order": 12,
+      "action": "Run npm test, fix any failures"
+    },
+    {
+      "order": 13,
+      "action": "Commit and push, write PR body"
+    }
+  ],
+  "expected_tests": [
+    {
+      "file": "src/__tests__/useIdleTimeout.test.ts",
+      "cases": [
+        "does nothing when enabled=false",
+        "fires onIdle30 after 30s (jest fake timers)",
+        "fires onIdle60 after 60s (jest fake timers)",
+        "resets timers on pointerdown event",
+        "cleans up listeners and timers on unmount"
+      ]
+    },
+    {
+      "file": "src/__tests__/MascotIdle.test.tsx",
+      "cases": [
+        "renders with data-testid='mascot-idle'",
+        "renders SVG panda",
+        "speech bubble shown when showBubble=true",
+        "speech bubble hidden when showBubble=false",
+        "calls onClick when clicked"
+      ]
+    },
+    {
+      "file": "src/__tests__/MoodCheck.test.tsx",
+      "cases": [
+        "renders with data-testid='mood-check'",
+        "renders happy/okay/tired emoji buttons",
+        "calls onMoodSelected('happy') when happy tapped",
+        "calls onMoodSelected('okay') when okay tapped",
+        "calls onMoodSelected('tired') when tired tapped"
+      ]
+    },
+    {
+      "file": "src/__tests__/CategorySelector.test.tsx",
+      "cases": [
+        "renders with data-testid='category-selector'",
+        "renders All Categories tile",
+        "renders each category tile with emoji and labels",
+        "calls onSelect('all') when All tapped",
+        "calls onSelect(category) when category tile tapped"
+      ]
+    },
+    {
+      "file": "src/__tests__/GuidedSession.test.tsx",
+      "cases": [
+        "renders greeting step initially (data-testid='session-greeting')",
+        "proceed button visible on greeting",
+        "clicking proceed advances to mood check",
+        "selecting a mood advances to explore step",
+        "onComplete from ExploreCards advances to celebration step"
+      ]
+    }
+  ],
+  "risk_areas": [
+    {
+      "area": "Framer Motion blink animation timing",
+      "mitigation": "Use repeatDelay + duration keyframe approach; blink mock in tests bypasses timing"
+    },
+    {
+      "area": "fetchWords race condition (db not ready at mood selection)",
+      "mitigation": "Show loading spinner for step 2 when words.length===0; await fetchWords before setStep(2)"
+    },
+    {
+      "area": "ExploreCards onComplete breaks existing tests",
+      "mitigation": "Prop is optional; existing tests don't pass it; logic guarded by if(onComplete)"
+    },
+    {
+      "area": "Window event listeners in SSR context",
+      "mitigation": "useIdleTimeout only attaches listeners inside useEffect (client-side only)"
+    },
+    {
+      "area": "ChildLayout MascotIdle overlaps home button",
+      "mitigation": "MascotIdle fixed bottom-left (bottom-20 left-4), home button bottom-right; no overlap"
+    }
+  ],
+  "persistence_strategy": "All session data recorded via addSession() to IndexedDB (existing 'sessions' object store in 'littlebridge' DB). No new DB structures needed. Data survives page refresh.",
+  "error_handling_approach": "fetchWords in GuidedSession wrapped in try/catch; if DB unavailable, shows empty words fallback state. saveSession errors are caught and logged (non-blocking). All DB calls use existing error patterns from codebase."
+}
