@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --font-nunito: 'Nunito', sans-serif;
+  --font-fredoka: 'Fredoka One', cursive;
+  --color-coral: #FF6B35;
+  --color-teal: #4ECDC4;
+  --color-lavender: #C7B8EA;
+  --color-bg-warm: #FFF9F0;
+  --color-parent-indigo: #4F46E5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-callout: none;
+  -webkit-touch-callout: none;
+}
+
+body {
+  background-color: var(--color-bg-warm);
+  font-family: var(--font-nunito);
+  overscroll-behavior: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1s ease-out infinite;
+}
