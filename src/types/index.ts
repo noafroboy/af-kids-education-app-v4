@@ -43,6 +43,7 @@ export interface Song {
   audioPath: string;
   coverImagePath: string;
   lyrics: LyricLine[];
+  playCount?: number;
 }
 
 export interface Session {

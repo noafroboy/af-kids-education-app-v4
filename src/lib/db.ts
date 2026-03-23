@@ -88,3 +88,11 @@ export async function addSession(db: IDBPDatabase<LittleBridgeDB>, session: Sess
 export async function getAllSessions(db: IDBPDatabase<LittleBridgeDB>): Promise<Session[]> {
   return db.getAll('sessions');
 }
+
+export async function getAllSongs(db: IDBPDatabase<LittleBridgeDB>): Promise<Song[]> {
+  return db.getAll('songs');
+}
+
+export async function putSong(db: IDBPDatabase<LittleBridgeDB>, song: Song): Promise<void> {
+  await db.put('songs', song);
+}
