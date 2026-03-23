@@ -1,0 +1,88 @@
+{
+  "verdict": "fail",
+  "dimensions": [
+    {
+      "name": "Requirements Met",
+      "score": 5,
+      "gaps_to_10": "20 of 100 ZH audio files (cat, dog, rabbit, fish, bird, apple, banana, milk, egg, rice, red, blue, yellow, green, pink, eyes, nose, mouth, hand, foot) contain JSON error responses rather than valid MP3 audio — these words produce no Mandarin audio when tapped. 20 of 100 vocabulary images are 1024x1024 instead of the required 512x512 (same 20 words — the sharp resize step was not applied). The presence of a committed generate-audio-zh-openai-fallback.ts script that uses OpenAI nova voice for Mandarin, combined with matching failure patterns on the same 20 words, raises serious doubt that the 80 valid ZH files actually used Google Cloud cmn-CN-Wavenet-A as required by Requirement 4. Summary log format is a minor deviation from the spec wording."
+    },
+    {
+      "name": "Error Handling",
+      "score": 7,
+      "gaps_to_10": "All scripts implement per-word try/catch with log-and-continue, and the image script has 3-attempt exponential backoff for 429/500 errors. However, the retry logic in generate-images.ts checks for '429', '500', or 'rate' in the error message string — this is fragile since the openai npm package wraps errors in typed objects (APIError) whose message format may not contain the raw status code string. The ZH audio script has no retry logic at all; transient Google Cloud failures will immediately write nothing and count as failed. The generate-audio-zh-openai-fallback.ts fallback script is committed to the repo and poses a risk of accidental use."
+    },
+    {
+      "name": "UX Completeness",
+      "score": 5,
+      "gaps_to_10": "20 vocabulary cards will have broken Mandarin audio (JSON error files cannot be played as MP3 by any browser). 20 vocabulary images are 1024x1024 — browsers will display them at wrong resolution, appearing blurry or oversized. VocabularyCard correctly falls back to /images/placeholder.png on image load error, but images are valid PNGs so the fallback will not trigger even though they are the wrong size."
+    },
+    {
+      "name": "Code Quality",
+      "score": 8,
+      "gaps_to_10": "Script code is well-structured, uses typed interfaces, and separates concerns cleanly. The generate-audio-zh-openai-fallback.ts file should not have been committed — it is a debugging artifact that pollutes the scripts/ directory and may confuse future maintainers about which script to run. The done counter in generate-images.ts is computed as result.generated + result.skipped + result.failed + 1 at the start of the task; because tasks run concurrently inside a batch, this counter will show non-sequential or duplicate values during concurrent execution."
+    },
+    {
+      "name": "Test Coverage",
+      "score": 8,
+      "gaps_to_10": "18 vocabulary data-integrity tests pass (count, categories, field presence, unique IDs, path patterns, slug disambiguation). Tests do not verify that generated asset files exist on disk or that they are valid binary files (this is intentional for unit tests but leaves the asset quality gap undetected). No tests for the generation scripts themselves (error handling paths, retry logic, --force flag behavior)."
+    },
+    {
+      "name": "Security",
+      "score": 9,
+      "gaps_to_10": "No hardcoded API keys. OPENAI_API_KEY and GOOGLE_APPLICATION_CREDENTIALS are read exclusively from process.env with clear error messages and exit(1) on missing values. generate-audio-zh.ts also validates the credentials file exists on disk before proceeding. Minor: generate-audio-zh-openai-fallback.ts reads OPENAI_API_KEY but is not integrated into the orchestrator — low risk."
+    }
+  ],
+  "average_score": 7.0,
+  "issues": [
+    {
+      "severity": "P1",
+      "file": "public/audio/zh/",
+      "description": "20 of 100 required Mandarin audio files contain JSON API error responses instead of valid MP3 audio. Files affected: cat.mp3, dog.mp3, rabbit.mp3, fish.mp3, bird.mp3, apple.mp3, banana.mp3, milk.mp3, egg.mp3, rice.mp3, red.mp3, blue.mp3, yellow.mp3, green.mp3, pink.mp3, eyes.mp3, nose.mp3, mouth.mp3, hand.mp3, foot.mp3. These files start with '{' (JSON) rather than a valid MP3 frame header. Browsers will fail to decode them silently; tapping these vocabulary cards produces no Mandarin audio.",
+      "fix_guidance": "Re-run `GOOGLE_APPLICATION_CREDENTIALS=<path> npm run generate-assets --audio-only --force` with valid Google Cloud credentials to regenerate all ZH audio. Delete the 20 invalid files first, or use --force to overwrite. Verify each file is a valid MP3 before committing (check that the first byte is not 0x7b).",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P1",
+      "file": "public/images/vocabulary/",
+      "description": "20 of 100 vocabulary images are 1024x1024 pixels instead of the required 512x512. Files: cat.png, dog.png, rabbit.png, fish.png, bird.png, apple.png, banana.png, milk.png, egg.png, rice.png, red.png, blue.png, yellow.png, green.png, pink.png, eyes.png, nose.png, mouth.png, hand.png, foot.png. This means the sharp resize step was not applied during generation of these images. They are valid PNGs but violate the 512x512 size contract specified in the image generation requirement.",
+      "fix_guidance": "Re-run `OPENAI_API_KEY=<key> npm run generate-assets --images-only --force` (or run generate-images.ts with --force) to regenerate the 20 affected images through the full DALL-E-3 → sharp resize pipeline. Alternatively, use sharp to resize the 20 existing images to 512x512 without re-billing DALL-E 3.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P1",
+      "file": "scripts/generate-audio-zh-openai-fallback.ts",
+      "description": "A fallback Mandarin TTS script using OpenAI nova voice (not Google Cloud cmn-CN-Wavenet-A) was committed to the repository. Requirement 4 explicitly requires Google Cloud cmn-CN-Wavenet-A voice for Mandarin audio. The presence of this script, combined with its internal note ('These ZH files were generated with OpenAI TTS'), strongly suggests that the 80 working ZH audio files may have been produced using this OpenAI fallback rather than Google Cloud, violating Requirement 4.",
+      "fix_guidance": "Delete scripts/generate-audio-zh-openai-fallback.ts from the repository. Re-run ZH audio generation exclusively via scripts/generate-audio-zh.ts with valid GOOGLE_APPLICATION_CREDENTIALS to ensure all 100 files use the cmn-CN-Wavenet-A voice. Verify by checking Google Cloud TTS billing or API logs.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P1",
+      "file": "public/audio/zh/",
+      "description": "20 orphaned pinyin-named ZH audio files were committed (bizi.mp3, fense.mp3, gou.mp3, hongse.mp3, huangse.mp3, jiao.mp3, jidan.mp3, lanse.mp3, lvse.mp3, mao.mp3, mifan.mp3, niao.mp3, niunai.mp3, pingguo.mp3, shou.mp3, tuzi.mp3, xiangjiao.mp3, yanjing.mp3, yu.mp3, zuiba.mp3). These are not referenced by vocabulary-seed.ts or any app code, but bloat the repository and indicate the generation was run multiple times with different naming conventions. This wastes API credits and creates confusion.",
+      "fix_guidance": "Remove the 20 pinyin-named orphan files from public/audio/zh/ and commit the deletion.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P2",
+      "file": "scripts/generate-images.ts",
+      "description": "The done counter (line 140) is computed as result.generated + result.skipped + result.failed + 1 at the start of each concurrent task. Because up to 5 tasks run concurrently within a batch, multiple tasks may read the same counter value before any increments the result object, producing duplicate or out-of-order progress numbers in the console output.",
+      "fix_guidance": "Use a shared atomic counter (e.g., let done = 0; inside generateImages, incrementing with done++ before logging) rather than summing the result fields.",
+      "checklist_item": "architecture"
+    },
+    {
+      "severity": "P2",
+      "file": "scripts/generate-images.ts",
+      "description": "The retry detection in generateImageWithRetry checks err.message for '429', '500', or 'rate' string fragments. The openai npm package throws typed APIError objects whose message is a human-readable string that may not contain the raw HTTP status code. This can cause retries to be skipped on retryable errors.",
+      "fix_guidance": "Use the openai SDK's typed error: import { APIError } from 'openai' and check err instanceof APIError && (err.status === 429 || err.status === 500) for reliable retry detection.",
+      "checklist_item": "error_handling"
+    },
+    {
+      "severity": "P2",
+      "file": "scripts/generate-audio-zh.ts",
+      "description": "No retry logic for Google Cloud TTS API calls. Transient failures (rate limiting, network errors) will immediately count as failed with no retry. The English TTS script also lacks retry logic for the same reason.",
+      "fix_guidance": "Add the same retry-with-exponential-backoff pattern used in generate-images.ts to the ZH and EN audio generation functions, checking for relevant Google Cloud error codes (429, 503).",
+      "checklist_item": "error_handling"
+    }
+  ],
+  "summary": "The scripts and vocabulary data are architecturally sound: all 5 required scripts are implemented with correct API usage, proper CLI flags, skip-if-exists logic, rate limiting, and Google Cloud/OpenAI credential validation. vocabulary-seed.ts and vocabulary-list.ts both contain all 100 words across 7 categories with correct slug-based paths, and all 25 vocabulary unit tests pass. EN audio (100 files) and SFX (6 files) are valid and complete. However, there are three critical P1 failures: (1) 20 of 100 Mandarin audio files are JSON error responses (API failures saved as files) making those vocabulary cards mute; (2) 20 of 100 vocabulary images were not resized to 512x512 and remain at 1024x1024; (3) the committed generate-audio-zh-openai-fallback.ts script violates the requirement to use Google Cloud cmn-CN-Wavenet-A exclusively for Mandarin TTS. The same 20 words affected by both the invalid audio and wrong-size images suggest a partial generation run was committed without validation. The implementation requires re-running asset generation with proper API credentials and validation of output files before the PR can pass."
+}

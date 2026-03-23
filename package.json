@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "jest --passWithNoTests",
     "test:ci": "jest --ci --passWithNoTests",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate-assets": "tsx scripts/generate-all-assets.ts"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.3",
@@ -23,7 +24,12 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@google-cloud/text-to-speech": "^5.7.0",
     "@tailwindcss/postcss": "^4.0.0",
+    "openai": "^4.80.0",
+    "p-limit": "^6.1.0",
+    "tsx": "^4.19.0",
+    "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",

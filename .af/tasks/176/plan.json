@@ -1,0 +1,285 @@
+{
+  "task_id": 176,
+  "title": "Write and Execute Asset-Generation Scripts",
+  "approach": "A - Conservative: standalone vocabulary-list.ts in scripts/ and standalone vocabulary-seed.ts in src/lib/ with identical 100-word data, no cross-directory imports to prevent Next.js from bundling Node.js dependencies",
+
+  "files_to_modify": [
+    {
+      "path": "src/lib/vocabulary-seed.ts",
+      "reason": "Replace 25-word stub with all 100 VocabularyWord entries across 7 categories; update ZH audio paths to slug-based naming (/audio/zh/{slug}.mp3)"
+    },
+    {
+      "path": "package.json",
+      "reason": "Add generate-assets script; add devDependencies: openai, @google-cloud/text-to-speech, p-limit, tsx"
+    }
+  ],
+
+  "files_to_create": [
+    {
+      "path": "scripts/vocabulary-list.ts",
+      "reason": "Source-of-truth vocabulary data for generation scripts; exports FULL_VOCABULARY array of 100 VocabularyWord objects; imports VocabularyWord type from ../src/types/index",
+      "approx_lines": 130
+    },
+    {
+      "path": "scripts/generate-images.ts",
+      "reason": "DALL-E 3 image generation: consistent kawaii style prompt for all 100 words, sharp resize to 512x512, skip-if-exists, p-limit(5) concurrency, 12s batch delay, 3-retry exponential backoff",
+      "approx_lines": 130
+    },
+    {
+      "path": "scripts/generate-audio-en.ts",
+      "reason": "OpenAI TTS (tts-1, nova, speed 0.85) for 100 English words; also generates 6 SFX files in public/audio/sfx/; p-limit(8) concurrency; skip-if-exists",
+      "approx_lines": 110
+    },
+    {
+      "path": "scripts/generate-audio-zh.ts",
+      "reason": "Google Cloud TTS (cmn-CN-Wavenet-A, speakingRate 0.85, MP3) for 100 Mandarin words; p-limit(10) concurrency; validates GOOGLE_APPLICATION_CREDENTIALS on startup; skip-if-exists",
+      "approx_lines": 100
+    },
+    {
+      "path": "scripts/generate-all-assets.ts",
+      "reason": "Orchestrator: parses --images-only, --audio-only, --word {slug}, --force flags; runs images→EN audio→ZH audio in sequence; prints final summary with generated/skipped/failed counts",
+      "approx_lines": 110
+    },
+    {
+      "path": "src/__tests__/vocabulary.test.ts",
+      "reason": "Tests for VOCABULARY_SEED: 100 entries, 7 categories with correct counts, all required fields, no duplicate IDs/slugs, correct path patterns"
+    }
+  ],
+
+  "new_dependencies": {
+    "devDependencies": {
+      "openai": "^4.0.0",
+      "@google-cloud/text-to-speech": "^5.0.0",
+      "p-limit": "^6.0.0",
+      "tsx": "^4.0.0"
+    }
+  },
+
+  "vocabulary_full_list": {
+    "animals_15": [
+      {"slug": "cat", "english": "Cat", "mandarin": "猫", "pinyin": "māo", "id": "animal-cat"},
+      {"slug": "dog", "english": "Dog", "mandarin": "狗", "pinyin": "gǒu", "id": "animal-dog"},
+      {"slug": "rabbit", "english": "Rabbit", "mandarin": "兔子", "pinyin": "tùzi", "id": "animal-rabbit"},
+      {"slug": "fish", "english": "Fish", "mandarin": "鱼", "pinyin": "yú", "id": "animal-fish"},
+      {"slug": "bird", "english": "Bird", "mandarin": "鸟", "pinyin": "niǎo", "id": "animal-bird"},
+      {"slug": "duck", "english": "Duck", "mandarin": "鸭子", "pinyin": "yāzi", "id": "animal-duck"},
+      {"slug": "elephant", "english": "Elephant", "mandarin": "大象", "pinyin": "dàxiàng", "id": "animal-elephant"},
+      {"slug": "monkey", "english": "Monkey", "mandarin": "猴子", "pinyin": "hóuzi", "id": "animal-monkey"},
+      {"slug": "panda", "english": "Panda", "mandarin": "熊猫", "pinyin": "xióngmāo", "id": "animal-panda"},
+      {"slug": "tiger", "english": "Tiger", "mandarin": "老虎", "pinyin": "lǎohǔ", "id": "animal-tiger"},
+      {"slug": "horse", "english": "Horse", "mandarin": "马", "pinyin": "mǎ", "id": "animal-horse"},
+      {"slug": "cow", "english": "Cow", "mandarin": "牛", "pinyin": "niú", "id": "animal-cow"},
+      {"slug": "frog", "english": "Frog", "mandarin": "青蛙", "pinyin": "qīngwā", "id": "animal-frog"},
+      {"slug": "bee", "english": "Bee", "mandarin": "蜜蜂", "pinyin": "mìfēng", "id": "animal-bee"},
+      {"slug": "butterfly", "english": "Butterfly", "mandarin": "蝴蝶", "pinyin": "húdié", "id": "animal-butterfly"}
+    ],
+    "food_15": [
+      {"slug": "apple", "english": "Apple", "mandarin": "苹果", "pinyin": "píngguǒ", "id": "food-apple"},
+      {"slug": "banana", "english": "Banana", "mandarin": "香蕉", "pinyin": "xiāngjiāo", "id": "food-banana"},
+      {"slug": "orange", "english": "Orange", "mandarin": "橙子", "pinyin": "chéngzi", "id": "food-orange"},
+      {"slug": "milk", "english": "Milk", "mandarin": "牛奶", "pinyin": "niúnǎi", "id": "food-milk"},
+      {"slug": "egg", "english": "Egg", "mandarin": "鸡蛋", "pinyin": "jīdàn", "id": "food-egg"},
+      {"slug": "rice", "english": "Rice", "mandarin": "米饭", "pinyin": "mǐfàn", "id": "food-rice"},
+      {"slug": "bread", "english": "Bread", "mandarin": "面包", "pinyin": "miànbāo", "id": "food-bread"},
+      {"slug": "cake", "english": "Cake", "mandarin": "蛋糕", "pinyin": "dàngāo", "id": "food-cake"},
+      {"slug": "water", "english": "Water", "mandarin": "水", "pinyin": "shuǐ", "id": "food-water"},
+      {"slug": "juice", "english": "Juice", "mandarin": "果汁", "pinyin": "guǒzhī", "id": "food-juice"},
+      {"slug": "cookie", "english": "Cookie", "mandarin": "饼干", "pinyin": "bǐnggān", "id": "food-cookie"},
+      {"slug": "noodles", "english": "Noodles", "mandarin": "面条", "pinyin": "miàntiáo", "id": "food-noodles"},
+      {"slug": "tofu", "english": "Tofu", "mandarin": "豆腐", "pinyin": "dòufu", "id": "food-tofu"},
+      {"slug": "mango", "english": "Mango", "mandarin": "芒果", "pinyin": "mángguǒ", "id": "food-mango"},
+      {"slug": "strawberry", "english": "Strawberry", "mandarin": "草莓", "pinyin": "cǎoméi", "id": "food-strawberry"}
+    ],
+    "colors_10": [
+      {"slug": "red", "english": "Red", "mandarin": "红色", "pinyin": "hóngsè", "id": "color-red"},
+      {"slug": "blue", "english": "Blue", "mandarin": "蓝色", "pinyin": "lánsè", "id": "color-blue"},
+      {"slug": "yellow", "english": "Yellow", "mandarin": "黄色", "pinyin": "huángsè", "id": "color-yellow"},
+      {"slug": "green", "english": "Green", "mandarin": "绿色", "pinyin": "lǜsè", "id": "color-green"},
+      {"slug": "pink", "english": "Pink", "mandarin": "粉色", "pinyin": "fěnsè", "id": "color-pink"},
+      {"slug": "purple", "english": "Purple", "mandarin": "紫色", "pinyin": "zǐsè", "id": "color-purple"},
+      {"slug": "orange-color", "english": "Orange", "mandarin": "橙色", "pinyin": "chéngsè", "id": "color-orange"},
+      {"slug": "white", "english": "White", "mandarin": "白色", "pinyin": "báisè", "id": "color-white"},
+      {"slug": "black", "english": "Black", "mandarin": "黑色", "pinyin": "hēisè", "id": "color-black"},
+      {"slug": "brown", "english": "Brown", "mandarin": "棕色", "pinyin": "zōngsè", "id": "color-brown"}
+    ],
+    "bodyParts_10": [
+      {"slug": "eyes", "english": "Eyes", "mandarin": "眼睛", "pinyin": "yǎnjīng", "id": "body-eyes"},
+      {"slug": "nose", "english": "Nose", "mandarin": "鼻子", "pinyin": "bízi", "id": "body-nose"},
+      {"slug": "mouth", "english": "Mouth", "mandarin": "嘴巴", "pinyin": "zuǐba", "id": "body-mouth"},
+      {"slug": "ears", "english": "Ears", "mandarin": "耳朵", "pinyin": "ěrduo", "id": "body-ears"},
+      {"slug": "hand", "english": "Hand", "mandarin": "手", "pinyin": "shǒu", "id": "body-hand"},
+      {"slug": "foot", "english": "Foot", "mandarin": "脚", "pinyin": "jiǎo", "id": "body-foot"},
+      {"slug": "head", "english": "Head", "mandarin": "头", "pinyin": "tóu", "id": "body-head"},
+      {"slug": "tummy", "english": "Tummy", "mandarin": "肚子", "pinyin": "dùzi", "id": "body-tummy"},
+      {"slug": "fingers", "english": "Fingers", "mandarin": "手指", "pinyin": "shǒuzhǐ", "id": "body-fingers"},
+      {"slug": "hair", "english": "Hair", "mandarin": "头发", "pinyin": "tóufa", "id": "body-hair"}
+    ],
+    "family_10": [
+      {"slug": "mama", "english": "Mama", "mandarin": "妈妈", "pinyin": "māma", "id": "family-mama"},
+      {"slug": "baba", "english": "Baba", "mandarin": "爸爸", "pinyin": "bàba", "id": "family-baba"},
+      {"slug": "baby", "english": "Baby", "mandarin": "宝宝", "pinyin": "bǎobao", "id": "family-baby"},
+      {"slug": "grandma", "english": "Grandma", "mandarin": "奶奶", "pinyin": "nǎinai", "id": "family-grandma"},
+      {"slug": "grandpa", "english": "Grandpa", "mandarin": "爷爷", "pinyin": "yéye", "id": "family-grandpa"},
+      {"slug": "sister", "english": "Sister", "mandarin": "姐姐", "pinyin": "jiějiě", "id": "family-sister"},
+      {"slug": "brother", "english": "Brother", "mandarin": "哥哥", "pinyin": "gēgē", "id": "family-brother"},
+      {"slug": "family", "english": "Family", "mandarin": "家人", "pinyin": "jiārén", "id": "family-family"},
+      {"slug": "love", "english": "Love", "mandarin": "爱", "pinyin": "ài", "id": "family-love"},
+      {"slug": "hug", "english": "Hug", "mandarin": "抱抱", "pinyin": "bàobao", "id": "family-hug"}
+    ],
+    "objects_20": [
+      {"slug": "ball", "english": "Ball", "mandarin": "球", "pinyin": "qiú", "id": "object-ball"},
+      {"slug": "book", "english": "Book", "mandarin": "书", "pinyin": "shū", "id": "object-book"},
+      {"slug": "chair", "english": "Chair", "mandarin": "椅子", "pinyin": "yǐzi", "id": "object-chair"},
+      {"slug": "table", "english": "Table", "mandarin": "桌子", "pinyin": "zhuōzi", "id": "object-table"},
+      {"slug": "cup", "english": "Cup", "mandarin": "杯子", "pinyin": "bēizi", "id": "object-cup"},
+      {"slug": "bag", "english": "Bag", "mandarin": "包包", "pinyin": "bāobao", "id": "object-bag"},
+      {"slug": "car", "english": "Car", "mandarin": "汽车", "pinyin": "qìchē", "id": "object-car"},
+      {"slug": "bed", "english": "Bed", "mandarin": "床", "pinyin": "chuáng", "id": "object-bed"},
+      {"slug": "door", "english": "Door", "mandarin": "门", "pinyin": "mén", "id": "object-door"},
+      {"slug": "window", "english": "Window", "mandarin": "窗户", "pinyin": "chuānghù", "id": "object-window"},
+      {"slug": "pencil", "english": "Pencil", "mandarin": "铅笔", "pinyin": "qiānbǐ", "id": "object-pencil"},
+      {"slug": "star", "english": "Star", "mandarin": "星星", "pinyin": "xīngxing", "id": "object-star"},
+      {"slug": "moon", "english": "Moon", "mandarin": "月亮", "pinyin": "yuèliang", "id": "object-moon"},
+      {"slug": "sun", "english": "Sun", "mandarin": "太阳", "pinyin": "tàiyáng", "id": "object-sun"},
+      {"slug": "flower", "english": "Flower", "mandarin": "花", "pinyin": "huā", "id": "object-flower"},
+      {"slug": "tree", "english": "Tree", "mandarin": "树", "pinyin": "shù", "id": "object-tree"},
+      {"slug": "house", "english": "House", "mandarin": "房子", "pinyin": "fángzi", "id": "object-house"},
+      {"slug": "clock", "english": "Clock", "mandarin": "时钟", "pinyin": "shízhōng", "id": "object-clock"},
+      {"slug": "umbrella", "english": "Umbrella", "mandarin": "雨伞", "pinyin": "yǔsǎn", "id": "object-umbrella"},
+      {"slug": "hat", "english": "Hat", "mandarin": "帽子", "pinyin": "màozi", "id": "object-hat"}
+    ],
+    "actions_20": [
+      {"slug": "hello", "english": "Hello", "mandarin": "你好", "pinyin": "nǐhǎo", "id": "action-hello"},
+      {"slug": "goodbye", "english": "Goodbye", "mandarin": "再见", "pinyin": "zàijiàn", "id": "action-goodbye"},
+      {"slug": "thank-you", "english": "Thank You", "mandarin": "谢谢", "pinyin": "xièxie", "id": "action-thank-you"},
+      {"slug": "please", "english": "Please", "mandarin": "请", "pinyin": "qǐng", "id": "action-please"},
+      {"slug": "yes", "english": "Yes", "mandarin": "是的", "pinyin": "shì de", "id": "action-yes"},
+      {"slug": "no", "english": "No", "mandarin": "不是", "pinyin": "bùshì", "id": "action-no"},
+      {"slug": "run", "english": "Run", "mandarin": "跑", "pinyin": "pǎo", "id": "action-run"},
+      {"slug": "jump", "english": "Jump", "mandarin": "跳", "pinyin": "tiào", "id": "action-jump"},
+      {"slug": "eat", "english": "Eat", "mandarin": "吃", "pinyin": "chī", "id": "action-eat"},
+      {"slug": "drink", "english": "Drink", "mandarin": "喝", "pinyin": "hē", "id": "action-drink"},
+      {"slug": "sleep", "english": "Sleep", "mandarin": "睡觉", "pinyin": "shuìjiào", "id": "action-sleep"},
+      {"slug": "play", "english": "Play", "mandarin": "玩", "pinyin": "wán", "id": "action-play"},
+      {"slug": "sit", "english": "Sit", "mandarin": "坐", "pinyin": "zuò", "id": "action-sit"},
+      {"slug": "stand", "english": "Stand", "mandarin": "站", "pinyin": "zhàn", "id": "action-stand"},
+      {"slug": "open", "english": "Open", "mandarin": "开", "pinyin": "kāi", "id": "action-open"},
+      {"slug": "close", "english": "Close", "mandarin": "关", "pinyin": "guān", "id": "action-close"},
+      {"slug": "wash", "english": "Wash", "mandarin": "洗", "pinyin": "xǐ", "id": "action-wash"},
+      {"slug": "cry", "english": "Cry", "mandarin": "哭", "pinyin": "kū", "id": "action-cry"},
+      {"slug": "laugh", "english": "Laugh", "mandarin": "笑", "pinyin": "xiào", "id": "action-laugh"},
+      {"slug": "dance", "english": "Dance", "mandarin": "跳舞", "pinyin": "tiàowǔ", "id": "action-dance"}
+    ]
+  },
+
+  "steps": [
+    {
+      "order": 1,
+      "action": "confirm branch exists",
+      "command": "git branch --show-current",
+      "expected": "af/176-write-and-execute-all-asset-generation-s/1"
+    },
+    {
+      "order": 2,
+      "action": "install new npm devDependencies",
+      "packages": ["openai", "@google-cloud/text-to-speech", "p-limit", "tsx"],
+      "command": "npm install --save-dev openai @google-cloud/text-to-speech p-limit tsx"
+    },
+    {
+      "order": 3,
+      "action": "create scripts/vocabulary-list.ts",
+      "details": "100-word FULL_VOCABULARY array; imports VocabularyWord from ../src/types/index; uses correct slugs, paths, pinyin"
+    },
+    {
+      "order": 4,
+      "action": "update src/lib/vocabulary-seed.ts",
+      "details": "Replace 25-word stub with all 100 VocabularyWord entries matching vocabulary-list.ts data; use slug-based ZH audio paths; export as VOCABULARY_SEED"
+    },
+    {
+      "order": 5,
+      "action": "create scripts/generate-images.ts",
+      "details": "DALL-E 3 with kawaii style prompt; sharp 512x512 resize; p-limit(5) + 12s delay; 3-retry backoff; skip-if-exists; placeholder.png generation"
+    },
+    {
+      "order": 6,
+      "action": "create scripts/generate-audio-en.ts",
+      "details": "OpenAI TTS tts-1/nova/0.85; 100 EN words + 6 SFX; p-limit(8); skip-if-exists; log-and-continue"
+    },
+    {
+      "order": 7,
+      "action": "create scripts/generate-audio-zh.ts",
+      "details": "Google Cloud TTS cmn-CN-Wavenet-A/0.85/MP3; GOOGLE_APPLICATION_CREDENTIALS validation; p-limit(10); skip-if-exists"
+    },
+    {
+      "order": 8,
+      "action": "create scripts/generate-all-assets.ts",
+      "details": "Orchestrator with --images-only/--audio-only/--word/--force flags; sequential execution; final summary"
+    },
+    {
+      "order": 9,
+      "action": "add generate-assets to package.json scripts",
+      "value": "tsx scripts/generate-all-assets.ts"
+    },
+    {
+      "order": 10,
+      "action": "create src/__tests__/vocabulary.test.ts",
+      "details": "Tests: 100 words, 7 categories with exact counts, required fields, no duplicate IDs, correct path patterns"
+    },
+    {
+      "order": 11,
+      "action": "run tests and type-check",
+      "commands": ["npm test", "npm run type-check"]
+    },
+    {
+      "order": 12,
+      "action": "run asset generation with API keys",
+      "command": "OPENAI_API_KEY=<key> GOOGLE_APPLICATION_CREDENTIALS=<path> npm run generate-assets",
+      "note": "Requires valid API keys; generates 100 images + 200 audio files; skips existing"
+    },
+    {
+      "order": 13,
+      "action": "commit all files including generated assets",
+      "details": "scripts/, updated vocabulary-seed.ts, package.json, generated public/ assets, test file"
+    }
+  ],
+
+  "expected_tests": [
+    "vocabulary.test.ts: VOCABULARY_SEED has exactly 100 entries",
+    "vocabulary.test.ts: all 7 categories present (animals, food, colors, bodyParts, family, objects, actions)",
+    "vocabulary.test.ts: animals has 15 words",
+    "vocabulary.test.ts: food has 15 words",
+    "vocabulary.test.ts: colors has 10 words",
+    "vocabulary.test.ts: bodyParts has 10 words",
+    "vocabulary.test.ts: family has 10 words",
+    "vocabulary.test.ts: objects has 20 words",
+    "vocabulary.test.ts: actions has 20 words",
+    "vocabulary.test.ts: no duplicate IDs",
+    "vocabulary.test.ts: imagePath follows /images/vocabulary/{slug}.png pattern",
+    "vocabulary.test.ts: audioEnPath follows /audio/en/{slug}.mp3 pattern",
+    "vocabulary.test.ts: audioZhPath follows /audio/zh/{slug}.mp3 pattern",
+    "vocabulary.test.ts: every word has all required VocabularyWord fields"
+  ],
+
+  "risk_areas": [
+    "DALL-E 3 rate limit (5 req/min standard) — mitigated by p-limit(5) + 12s inter-batch delay",
+    "Google Cloud auth requires service account JSON file at GOOGLE_APPLICATION_CREDENTIALS path",
+    "tsconfig type-checking now includes scripts/ — openai and @google-cloud/text-to-speech must be installed",
+    "SFX generation with sine wave under --force — Node.js Buffer approach since tone package is browser-focused",
+    "ZH audio path naming change from pinyin to slug — existing 20 pinyin-named files become orphaned (harmless)"
+  ],
+
+  "persistence_strategy": "Static file assets committed to git under public/. App reads via static HTTP (no runtime API calls). User progress stored in IndexedDB as before.",
+
+  "error_handling_approach": "Per-word try/catch with log-and-continue in all generation scripts. Startup validation (exit 1) if API keys missing. 3-attempt retry with exponential backoff for transient API errors (429, 500). Orchestrator collects failed counts and reports in final summary.",
+
+  "image_style_prompt": "Kawaii toddler flashcard illustration of {englishWord}, white background, warm pastel colors, thick simple black outlines, cute friendly style, flat 2D digital art, no text or letters, no shadows, suitable for ages 2-5 educational app, joyful expression if living thing, 512x512 art style",
+
+  "sfx_texts": {
+    "correct": "Correct! Great job!",
+    "incorrect": "Oops, try again",
+    "celebration": "Hooray! You did it!",
+    "whoosh": "Whoosh",
+    "card-flip": "flip",
+    "tap": "tap"
+  }
+}
