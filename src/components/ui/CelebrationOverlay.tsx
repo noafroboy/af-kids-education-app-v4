@@ -8,10 +8,11 @@ import confetti from 'canvas-confetti';
 interface CelebrationOverlayProps {
   childName: string;
   wordCount: number;
+  stars?: number;
   onPlayMore?: () => void;
 }
 
-export function CelebrationOverlay({ childName, wordCount, onPlayMore }: CelebrationOverlayProps) {
+export function CelebrationOverlay({ childName, wordCount, stars = 3, onPlayMore }: CelebrationOverlayProps) {
   const router = useRouter();
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export function CelebrationOverlay({ childName, wordCount, onPlayMore }: Celebra
     });
   }, []);
 
-  const stars = ['⭐', '⭐', '⭐'];
+  const starIcons = Array.from({ length: stars }, () => '⭐');
 
   return (
     <motion.div
@@ -42,7 +43,7 @@ export function CelebrationOverlay({ childName, wordCount, onPlayMore }: Celebra
       style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FFF9F0 60%, #4ECDC4 100%)' }}
     >
       <div className="flex gap-2">
-        {stars.map((star, i) => (
+        {starIcons.map((star, i) => (
           <motion.span
             key={i}
             initial={{ scale: 0 }}
