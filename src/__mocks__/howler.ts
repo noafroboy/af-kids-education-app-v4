@@ -7,6 +7,10 @@ export class Howl {
   stop() {}
   unload() {}
   playing() { return false; }
+  pause(): this { return this; }
+  seek(pos?: number): number { return pos ?? 0; }
+  duration(): number { return 0; }
+  volume(v?: number): number | this { return typeof v === 'number' ? this : 1; }
 
   on(event: string, cb: (...args: unknown[]) => void) {
     if (!this.callbacks[event]) this.callbacks[event] = [];
