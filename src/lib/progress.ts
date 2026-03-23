@@ -45,15 +45,13 @@ export async function getWeeklyStats(db: IDBPDatabase): Promise<{
     (p) => p.lastSeenAt && new Date(p.lastSeenAt) >= oneWeekAgo
   ).length;
 
-  const sessionDates = new Set(
-    allSessions.map((s) => formatDate(new Date(s.completedAt)))
-  );
+  const sessionDateList = allSessions.map((s) => formatDate(new Date(s.completedAt)));
   let streak = 0;
   const today = new Date();
   for (let i = 0; i < 30; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    if (sessionDates.has(formatDate(d))) {
+    if (sessionDateList.includes(formatDate(d))) {
       streak++;
     } else if (i > 0) {
       break;
