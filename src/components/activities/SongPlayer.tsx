@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Howl } from 'howler';
 import Image from 'next/image';
 import { audioManager } from '@/lib/audio';
-import WordChip from './WordChip';
+import SongLyricsPanel from './SongLyricsPanel';
 import type { Song, VocabularyWord } from '@/types';
 
 interface SongPlayerProps {
@@ -165,67 +165,17 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
         {playing ? '⏸' : '▶'}
       </button>
 
-      <div className="w-full flex-1 overflow-y-auto flex flex-col gap-3 pb-4">
-        {song.lyrics.map((line, i) => {
-          const isActive = i === currentLineIndex;
-          const lineWords = line.highlightWordIds
-            .map((wid) => vocabulary.find((v) => v.id === wid))
-            .filter((w): w is VocabularyWord => w !== undefined);
-
-          return (
-            <div
-              key={i}
-              ref={isActive ? currentLineRef : null}
-              className={`rounded-2xl p-3 transition-colors ${isActive ? 'bg-[#FFE0D5]' : 'bg-transparent'}`}
-            >
-              <p className={`font-bold ${isActive ? 'text-[#FF6B35] text-lg' : 'text-slate-400 text-sm'}`}
-                style={{ fontFamily: 'var(--font-fredoka)' }}>
-                {line.text}
-              </p>
-              <p className="text-slate-500 text-sm">{line.textZh}</p>
-              {isActive && lineWords.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {lineWords.map((word) => (
-                    <WordChip
-                      key={word.id}
-                      word={word}
-                      isActive={activatedWordId === word.id}
-                      onTap={handleWordTap}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {songEnded && (
-        <div
-          data-testid="completion-banner"
-          className="w-full bg-[#C7B8EA] rounded-3xl p-6 flex flex-col items-center gap-3"
-        >
-          <p className="text-2xl font-bold text-white" style={{ fontFamily: 'var(--font-fredoka)' }}>
-            Great singing! / 唱得真棒！
-          </p>
-          <div className="flex gap-3">
-            <button
-              data-testid="listen-again-btn"
-              onClick={handleListenAgain}
-              className="px-4 py-2 bg-white text-[#C7B8EA] rounded-2xl font-bold text-sm"
-            >
-              Listen Again / 再听一次
-            </button>
-            <button
-              data-testid="choose-another-btn"
-              onClick={onBack}
-              className="px-4 py-2 bg-[#FF6B35] text-white rounded-2xl font-bold text-sm"
-            >
-              Choose Another / 换一首
-            </button>
-          </div>
-        </div>
-      )}
+      <SongLyricsPanel
+        lyrics={song.lyrics}
+        vocabulary={vocabulary}
+        currentLineIndex={currentLineIndex}
+        activatedWordId={activatedWordId}
+        lineRef={currentLineRef}
+        onWordTap={handleWordTap}
+        songEnded={songEnded}
+        onListenAgain={handleListenAgain}
+        onBack={onBack}
+      />
 
       <button onClick={onBack} className="self-start px-4 py-2 text-slate-500 font-semibold text-sm rounded-xl">
         ← Back / 返回
