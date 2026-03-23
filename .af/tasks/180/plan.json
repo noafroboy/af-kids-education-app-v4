@@ -1,0 +1,72 @@
+{
+  "files_to_modify": [
+    "src/app/parent/page.tsx"
+  ],
+  "files_to_create": [
+    "src/components/layouts/ParentLayout.tsx",
+    "src/components/ui/StreakCalendar.tsx",
+    "src/components/ui/WordDetailSheet.tsx",
+    "src/components/ui/WordListRow.tsx",
+    "src/components/parent/ChangePinSection.tsx",
+    "src/app/parent/dashboard/page.tsx",
+    "src/app/parent/settings/page.tsx",
+    "src/__tests__/ParentLayout.test.tsx",
+    "src/__tests__/ParentPin.test.tsx",
+    "src/__tests__/ParentDashboard.test.tsx",
+    "src/__tests__/WordDetailSheet.test.tsx",
+    "src/__tests__/StreakCalendar.test.tsx",
+    "src/__tests__/ParentSettings.test.tsx"
+  ],
+  "approach": "Conservative (Approach A) — minimal new code, reuse existing hooks/utilities, extract sub-components only where 150-line limit demands it",
+  "steps": [
+    "1. Create src/components/layouts/ParentLayout.tsx: indigo header with back-to-/ link, bilingual title, optional rightSlot prop, slate-50 body, max-w-lg mx-auto",
+    "2. Create src/components/ui/StreakCalendar.tsx: receives sessionDates Set<string>, renders 7-day row ending today, filled coral circle for active days, outline for inactive, coral border ring for today",
+    "3. Create src/components/ui/WordListRow.tsx: displays 48x48 word thumbnail (next/image), English word (Nunito Bold), Mandarin word, mastery badge pill; props: word, progress, onClick",
+    "4. Create src/components/ui/WordDetailSheet.tsx: Framer Motion fixed bottom sheet (y: 300->0), backdrop overlay, close button, 192x192 image, word text, two audio buttons (useAudio.playWordEn for EN and ZH separately), mastery stats section",
+    "5. Create src/components/parent/ChangePinSection.tsx: multi-step PIN change flow (verify current -> enter new -> save hash); extracted to keep settings page under 150 lines",
+    "6. Replace src/app/parent/page.tsx: 'use client'; load pinHash from DB on mount; render ParentLayout with PinPad; track wrongAttempts state; on wrong PIN show toast-style inline message; after 3 wrongs show Forgot PIN button and reset modal; on correct PIN router.replace('/parent/dashboard')",
+    "7. Create src/app/parent/dashboard/page.tsx: 'use client'; on mount load all data (getAllProgress, getWeeklyStats, getAllWords, getAllSessions) from IndexedDB; show loading skeleton; empty state if no sessions; stats header with weekly words + streak; StreakCalendar; horizontal scrollable category tabs; filtered word list using WordListRow; WordDetailSheet conditional render; Settings link in ParentLayout rightSlot",
+    "8. Create src/app/parent/settings/page.tsx: 'use client'; Section 1 child profile (name input pre-filled, age tiles, save to DB); Section 2 Change PIN (renders ChangePinSection); Section 3 Reset Progress (red button, Framer Motion confirm dialog, on confirm db.clear progress+sessions then router.push(/))",
+    "9. Write tests: ParentLayout, ParentPin (correct/wrong/forgot), ParentDashboard (loading/empty/stats/filter/sheet), WordDetailSheet (renders/close), StreakCalendar (7 days/today), ParentSettings (save/reset)",
+    "10. Run npm test to verify all tests pass"
+  ],
+  "expected_tests": [
+    "ParentLayout: renders data-testid='parent-layout', shows back link to /, shows title, renders rightSlot",
+    "ParentPin: renders data-testid='parent-pin-page', shows PinPad",
+    "ParentPin: correct PIN calls router.replace('/parent/dashboard')",
+    "ParentPin: wrong PIN shows error message with attempt count",
+    "ParentPin: 3 wrong PINs shows Forgot PIN button",
+    "ParentPin: clicking Forgot PIN opens reset modal",
+    "ParentPin: confirming reset navigates to /onboarding",
+    "ParentDashboard: renders data-testid='parent-dashboard'",
+    "ParentDashboard: shows loading skeleton while data loads",
+    "ParentDashboard: shows empty state when no sessions exist",
+    "ParentDashboard: renders stats header with weekly word count and streak",
+    "ParentDashboard: category filter All tab renders all words",
+    "ParentDashboard: category filter Animals tab filters to animal words",
+    "ParentDashboard: clicking word row sets selectedWord and renders WordDetailSheet",
+    "WordDetailSheet: renders data-testid='word-detail-sheet'",
+    "WordDetailSheet: displays English word, Mandarin word, pinyin",
+    "WordDetailSheet: close button calls onClose",
+    "WordDetailSheet: shows mastery stats",
+    "StreakCalendar: renders data-testid='streak-calendar'",
+    "StreakCalendar: renders exactly 7 day circles",
+    "StreakCalendar: today has coral ring indicator",
+    "ParentSettings: renders data-testid='parent-settings'",
+    "ParentSettings: child name input is pre-filled from DB",
+    "ParentSettings: save profile updates DB",
+    "ParentSettings: reset progress button opens confirmation dialog",
+    "ParentSettings: confirming reset clears stores and navigates to /"
+  ],
+  "risk_areas": [
+    "useAudio.playWordEn(path) is functionally generic (plays any audio path) — WordDetailSheet Mandarin button calls playWordEn(word.audioZhPath) since no playWordZh exists; name is misleading but implementation is correct",
+    "db.clear(storeName) availability — idb v8 IDBPDatabase.clear(storeName) is a documented shorthand; verify at implementation time that type signature allows it",
+    "Framer Motion AnimatePresence bottom sheet must be properly mocked in tests with y animation stripped",
+    "PinPad auto-submits after 4 digits with 100ms setTimeout — tests must await with setTimeout(r, 200) as per existing PinPad.test.tsx pattern",
+    "PIN gate load race: pinHash may not be loaded when user types quickly — ensure loading state disables PinPad until DB read completes",
+    "Dashboard category filter tabs overflow on 375px mobile — use overflow-x-auto with touch-action: pan-x",
+    "Settings page has 3 sections (profile, change PIN, reset) that could exceed 150 lines — ChangePinSection extracted to src/components/parent/ChangePinSection.tsx"
+  ],
+  "persistence_strategy": "All data stored in existing IndexedDB (idb v8) via getDB() singleton. No new storage mechanisms. Settings use putSetting(db, key, value). Full reset uses db.clear('progress'), db.clear('sessions'), db.clear('settings'). Partial reset (settings page) uses db.clear('progress'), db.clear('sessions') only.",
+  "error_handling_approach": "All DB operations wrapped in try/catch. Error states rendered inline (red text below affected section). PIN page: loading state disables PinPad with 'Loading...' text. Dashboard: error renders 'Failed to load data / 加载失败' message with retry hint. Settings: save errors shown inline below each section's save button."
+}
