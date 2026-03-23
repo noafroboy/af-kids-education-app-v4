@@ -29,6 +29,7 @@
     "openai": "^4.80.0",
     "p-limit": "^6.1.0",
     "tsx": "^4.19.0",
+    "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
