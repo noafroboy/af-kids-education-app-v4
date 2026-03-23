@@ -1,0 +1,88 @@
+{
+  "verdict": "fail",
+  "dimensions": [
+    {
+      "name": "Requirements Met",
+      "score": 6,
+      "gaps_to_10": "Two mobile layout requirements are violated: (1) the requirement states 'On 375px mobile, Listen & Find choice cards are displayed in a 2-column grid' but age≤3 uses grid-cols-3, producing ~104px wide cards (below the ≥120px spec); (2) the reveal card border is specified as 'coral border' but ChoiceCard uses ring-yellow-400 instead. Additionally, ListenAndFind bypasses the useAudio/audioManager system for word playback (uses raw new Audio()) defeating iOS unlock, Howler caching, and the playWordEn hook that was explicitly added for this purpose."
+    },
+    {
+      "name": "Error Handling",
+      "score": 8,
+      "gaps_to_10": "Pages have try/catch with user-visible error messages and loading states. Audio errors are swallowed gracefully. Minor gap: ListenAndFind and MatchingPairs components have no unmount-safe timer cleanup — setTimeouts fire against unmounted components if user navigates away mid-activity."
+    },
+    {
+      "name": "UX Completeness",
+      "score": 7,
+      "gaps_to_10": "Loading, error, and empty states are present. CelebrationOverlay renders correctly for both activities. The 3-column layout for 3-choice cards on a 375px device produces cards too small for young children to reliably tap (~104px vs ≥120px required). The 'Play Again' button on ListenAndFind page reshuffles and reloads correctly."
+    },
+    {
+      "name": "Code Quality",
+      "score": 8,
+      "gaps_to_10": "All component files are under 160 lines. Refs are used correctly for isFlipping guard and wrongAttemptsRef. The updateWordProgress IDB transaction wrapping is well-structured. Minor issue: ListenAndFind uses raw new Audio() for word audio instead of the audioManager.playWordEn that was specifically added for this feature, creating an inconsistency."
+    },
+    {
+      "name": "Test Coverage",
+      "score": 6,
+      "gaps_to_10": "All 21 new tests pass alongside existing 53 tests (74 total, all green). However, several MatchingPairs tests are too weak: 'onComplete fires when all pairs are matched' asserts mock.calls.length >= 0 (trivially always true — never actually verifies onComplete fires); 'matched pair gets flip-card-matched' test contains a tautological final assertion. No error-path tests for DB failure during the activity. The 'mismatched pair revert' test works correctly but only when cards don't happen to match."
+    },
+    {
+      "name": "Security",
+      "score": 10,
+      "gaps_to_10": "No hardcoded API keys. User-supplied values (childName, wordCount) are rendered via React (XSS-safe). No direct innerHTML usage."
+    }
+  ],
+  "average_score": 7.5,
+  "issues": [
+    {
+      "severity": "P1",
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "description": "3-choice grid uses grid-cols-3 which renders cards at ~104px wide on 375px mobile (padding 32px + 2 gaps of 16px = 64px overhead; (375-64)/3 ≈ 104px). The requirement explicitly states 'On 375px mobile, Listen & Find choice cards are displayed in a 2-column grid and are usable without horizontal scroll' and 'All choice cards ≥120×120px'. A 3-column layout at 375px violates both constraints for age≤3 users.",
+      "fix_guidance": "Change the grid layout logic so that all choice counts use a 2-column grid on mobile. For 3 choices use grid-cols-2 and place the 3rd card centered in the second row (or use grid-cols-3 only at ≥480px viewport). The simplest fix: always use 'grid-cols-2' for the choice grid — 3 cards in a 2-col grid will leave one slot empty, which is fine; or conditionally render 'grid-cols-2 sm:grid-cols-3' so 3-col only kicks in on wider screens. Cards at 2-col on 375px will be ~163px wide, safely above the 120px minimum.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P1",
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "description": "setTimeout calls inside handleTap (lines 98, 104, 109) and the advance() function have no cleanup on component unmount. If the user navigates away (taps Go Home during the 1200ms delay), React attempts to setState on an unmounted component, causing warnings in development and potential state corruption with strict mode concurrent rendering. This is a known React bug vector in activities that auto-advance.",
+      "fix_guidance": "Add a useEffect cleanup that cancels pending timers. Use a single ref to collect all pending timer IDs: const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]); then replace every setTimeout call with: const t = setTimeout(...); timersRef.current.push(t); and add: useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []); This eliminates all state-on-unmounted-component warnings and prevents logic errors on mid-activity navigation.",
+      "checklist_item": "ux"
+    },
+    {
+      "severity": "P1",
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "description": "setTimeout calls inside handleFlip (lines 77, 95) have no cleanup on unmount. The 800ms 'flip back' timer and the 400ms 'compare' timer will fire state updates against an unmounted component if the user navigates away. The isFlipping.current ref will also remain set to true permanently if the component unmounts during the 400ms window, but since the component is unmounted this just leaks the timer callback.",
+      "fix_guidance": "Apply the same timer-cleanup pattern as described for ListenAndFind: collect all setTimeout IDs in a ref array and clear them in a useEffect cleanup. For the nested setTimeout (800ms inside the 400ms callback), push both IDs into timersRef.current.",
+      "checklist_item": "ux"
+    },
+    {
+      "severity": "P2",
+      "file": "src/components/activities/ChoiceCard.tsx",
+      "description": "The reveal card state uses ring-yellow-400 border instead of the specified 'coral border' (ring-[#FF6B35]). The task spec says: 'auto-highlight the correct card with gentle pulse animation (coral border + scale)'. This is a visual inconsistency with the design spec.",
+      "fix_guidance": "Change borderClass for reveal state from 'ring-4 ring-yellow-400' to 'ring-4 ring-[#FF6B35]' to match the coral color used throughout the app.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P2",
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "description": "Word audio playback uses raw new Audio(target.audioEnPath) instead of the audioManager.playWordEn() method that was specifically added to audio.ts and useAudio.ts for this feature. This bypasses: (1) Howler-based caching (words load from network on every round), (2) iOS AudioContext unlock (audio may silently fail on first tap on iOS), (3) error tracking via audioManager.hasError.",
+      "fix_guidance": "In ListenAndFind.tsx, destructure playWordEn from useAudio() alongside playEffect. Replace new Audio(target.audioEnPath).play().catch(() => {}) with playWordEn(target.audioEnPath) in both setupRound and the inline Play Again button handler.",
+      "checklist_item": "requirements"
+    },
+    {
+      "severity": "P2",
+      "file": "src/__tests__/MatchingPairs.test.tsx",
+      "description": "The 'onComplete fires when all pairs are matched' test asserts expect(mockOnComplete.mock.calls.length).toBeGreaterThanOrEqual(0) — this condition is always true even if onComplete is never called (zero calls satisfies >= 0). The test provides no real coverage of the onComplete requirement.",
+      "fix_guidance": "Use a deterministic word list and force all pairs to match by iterating through cards in known order. Because cards are shuffled, the test should either: (a) use a single-pair word list (pass [makeWord('cat','Cat')] and boardSize forced to 1 via age mock), or (b) brute-force all possible pairs until all 6 cards are matched and then assert expect(mockOnComplete).toHaveBeenCalledWith(expect.objectContaining({ stars: expect.any(Number) })). Change the assertion to expect(mockOnComplete).toHaveBeenCalledTimes(1).",
+      "checklist_item": "test_quality"
+    },
+    {
+      "severity": "P2",
+      "file": "src/__tests__/MatchingPairs.test.tsx",
+      "description": "'matched pair gets data-testid=flip-card-matched' test ends with the assertion: expect(matchFound || screen.queryAllByTestId('flip-card-matched').length >= 0).toBe(true) — the second operand is always >= 0 so the OR is always true regardless of whether matchFound is true. The test cannot fail even if the matching logic is broken.",
+      "fix_guidance": "Remove the tautological fallback. Either ensure matchFound=true via a deterministic single-pair word list, or fail explicitly: if (!matchFound) throw new Error('No match found in test — increase word list or fix shuffle'). Assert: expect(screen.getAllByTestId('flip-card-matched')).toHaveLength(2).",
+      "checklist_item": "test_quality"
+    }
+  ],
+  "summary": "The implementation is largely complete and all 74 tests pass. Both activities render correctly, use IndexedDB for progress persistence, have proper loading/error states, and wire up CelebrationOverlay with correct stats. The IDB transaction wrapping for concurrent updateWordProgress calls is well done. However, three P1 issues require fixes before production: (1) The Listen & Find 3-choice grid uses grid-cols-3 producing ~104px cards on 375px mobile — below the required 120px minimum and violating the explicit 2-column-grid requirement; (2) ListenAndFind has unguarded setTimeouts with no unmount cleanup, causing state updates on unmounted components; (3) MatchingPairs has the same timer-cleanup gap. Two P2 issues: the reveal card uses yellow instead of coral border, and word audio bypasses the audioManager/Howler system. Two additional P2 test quality issues exist where assertions are tautologically true and cannot detect regressions in the matching logic."
+}
