@@ -1,0 +1,179 @@
+{
+  "files_to_modify": [
+    {
+      "path": "src/lib/progress.ts",
+      "reason": "Wrap updateWordProgress in an IDB readwrite transaction for concurrent-call safety"
+    },
+    {
+      "path": "src/lib/audio.ts",
+      "reason": "Add playWordEn(path) method for Listen & Find (EN-only audio playback, no ZH follow-up)"
+    },
+    {
+      "path": "src/hooks/useAudio.ts",
+      "reason": "Expose playWordEn from audioManager"
+    },
+    {
+      "path": "src/components/ui/CelebrationOverlay.tsx",
+      "reason": "Add optional stars?: number prop (default 3) for Matching Pairs star rating; backward-compatible with existing tests"
+    },
+    {
+      "path": "src/app/activities/listen-find/page.tsx",
+      "reason": "Replace 'coming soon' stub with full client page"
+    },
+    {
+      "path": "src/app/activities/matching-pairs/page.tsx",
+      "reason": "Replace 'coming soon' stub with full client page"
+    }
+  ],
+  "files_to_create": [
+    {
+      "path": "src/components/activities/ChoiceCard.tsx",
+      "purpose": "Image-only choice card for Listen & Find; handles correct/incorrect/reveal animation states via Framer Motion; extracted to keep ListenAndFind.tsx under 150 lines",
+      "estimated_lines": 55
+    },
+    {
+      "path": "src/components/activities/ListenAndFind.tsx",
+      "purpose": "Core Listen & Find activity component; manages round state, wrong-attempt counter, auto-reveal after 2 failures, progress recording, round completion",
+      "estimated_lines": 130
+    },
+    {
+      "path": "src/components/activities/FlipCard.tsx",
+      "purpose": "CSS 3D flip card (perspective-1000, preserve-3d, rotateY 400ms transition); renders front face (teal/panda) and back face (EN image+word or ZH character+pinyin); extracted to keep MatchingPairs.tsx under 150 lines",
+      "estimated_lines": 65
+    },
+    {
+      "path": "src/components/activities/MatchingPairs.tsx",
+      "purpose": "Core Matching Pairs activity; manages card state (isFlipped/isMatched/isLocked), flip guard (isFlipping ref), 400ms compare timer, 800ms no-match revert, star rating calculation, session recording",
+      "estimated_lines": 130
+    },
+    {
+      "path": "src/__tests__/ListenAndFind.test.tsx",
+      "purpose": "Tests: renders container, 3 choices for age≤3, 4 for age≥4, correct tap calls updateWord, wrong tap increments counter, 2 wrongs triggers reveal (no credit), progress bar present, onComplete fires",
+      "estimated_lines": 120
+    },
+    {
+      "path": "src/__tests__/MatchingPairs.test.tsx",
+      "purpose": "Tests: renders container, 6 cards for age≤3, 8 for age≥4, matched cards get testid flip-card-matched, mismatched cards flip back, second-tap guard prevents double-flip, board complete calls onComplete",
+      "estimated_lines": 110
+    }
+  ],
+  "approach": "conservative",
+  "approach_rationale": "Mirrors ExploreCards.tsx patterns exactly: useDB+useProgress+useAudio hooks, wordList prop for testability, same mock structure in tests. Extracts sub-components (ChoiceCard, FlipCard) only as needed to stay under 150 lines. Avoids any new abstractions or shared state outside the two activities.",
+  "steps": [
+    {
+      "id": 1,
+      "title": "Create branch af/177-build-the-listen-find-and-matching-pairs/4",
+      "files": []
+    },
+    {
+      "id": 2,
+      "title": "Patch src/lib/progress.ts — IDB transaction for updateWordProgress",
+      "details": "Replace getProgress+putProgress pair with a single db.transaction('progress','readwrite') block so concurrent calls serialize in IndexedDB and cannot interleave reads/writes"
+    },
+    {
+      "id": 3,
+      "title": "Add playWordEn to audio.ts and useAudio.ts",
+      "details": "AudioManager.playWordEn(enPath) plays only the EN audio (no 800ms ZH follow-up). useAudio exposes it as playWordEn. This is needed because Listen & Find auto-plays only the English word so child identifies by sound."
+    },
+    {
+      "id": 4,
+      "title": "Add optional stars prop to CelebrationOverlay",
+      "details": "stars?: number defaults to 3. Array(stars).fill('⭐') replaces the hardcoded array. Existing tests still pass because default is unchanged."
+    },
+    {
+      "id": 5,
+      "title": "Create src/components/activities/ChoiceCard.tsx",
+      "details": "Props: word, state ('idle'|'correct'|'wrong'|'reveal'), onTap. Correct: ring-4 ring-green-400 + Framer Motion spring scale. Wrong: Framer Motion x keyframes shake. Reveal: ring-4 ring-[#FF6B35] + gentle pulse. Shows image only (no text on face). data-testid='choice-card'."
+    },
+    {
+      "id": 6,
+      "title": "Create src/components/activities/ListenAndFind.tsx",
+      "details": "Props: wordList, age, onComplete. Picks choices (3 for age≤3, 4 for age≥4). On mount/advance: playWordEn(targetWord.audioEnPath). Correct tap: updateWord(true), 1200ms advance. Wrong tap: wrongAttempts++, no credit. After 2 wrongs: show reveal card + bilingual text 2s, then advance (no updateWord). On complete: onComplete({wordsAttempted, correctFirst, duration}) + saveSession. data-testid='listen-and-find'. ProgressBar data-testid='listen-find-progress'."
+    },
+    {
+      "id": 7,
+      "title": "Create src/components/activities/FlipCard.tsx",
+      "details": "Outer div: style={{perspective:'1000px'}}. Inner div: style={{transformStyle:'preserve-3d', transition:'transform 400ms', transform: isFlipped?'rotateY(180deg)':'rotateY(0deg)'}}. Front face (backfaceVisibility:'hidden'): teal bg + 🐼. Back EN face: image + englishWord. Back ZH face: mandarinWord coral + pinyin small. isMatched adds ring-4 ring-green-400. data-testid='flip-card', data-testid='flip-card-matched' when matched."
+    },
+    {
+      "id": 8,
+      "title": "Create src/components/activities/MatchingPairs.tsx",
+      "details": "PairCard type: {id, wordId, type:'en'|'zh', word, isFlipped, isMatched}. initBoard: pick N words, create 2 cards per word, shuffle. handleFlip: isFlipping ref guard + 2-card max. After 400ms compare: match→isMatched=true+correct SFX+updateWord; no-match→800ms revert+incorrect SFX. Board done when all isMatched: star calc (≤N→3, ≤2N→2, else 1), recordSession, show complete=true. data-testid='matching-pairs'."
+    },
+    {
+      "id": 9,
+      "title": "Replace src/app/activities/listen-find/page.tsx",
+      "details": "'use client'. Uses useDB+getAllWords+getSetting('childAge','childName'). Picks 5-6 words (shuffleArray). On complete: show CelebrationOverlay with wordCount=stats.correctFirst; onPlayMore reshuffles. Wraps in ChildLayout."
+    },
+    {
+      "id": 10,
+      "title": "Replace src/app/activities/matching-pairs/page.tsx",
+      "details": "'use client'. Same DB loading. On complete: show CelebrationOverlay with stars prop from completion stats. 'New Game' button reshuffles. Wraps in ChildLayout."
+    },
+    {
+      "id": 11,
+      "title": "Write src/__tests__/ListenAndFind.test.tsx",
+      "details": "Mock framer-motion, next/image, next/navigation, useDB (null), useProgress, useAudio following ExploreCards.test.tsx exactly. Tests: container testid, 3 vs 4 choices by age, correct tap triggers updateWord, wrong tap increments (no updateWord), 2nd wrong triggers reveal text, progress bar present, onComplete called after all words."
+    },
+    {
+      "id": 12,
+      "title": "Write src/__tests__/MatchingPairs.test.tsx",
+      "details": "Mock same as ListenAndFind test. Tests: container testid, 6 cards age≤3, 8 cards age≥4, matched pair gets flip-card-matched testid, mismatched pair reverts, onComplete fires, second tap on flipped card is ignored."
+    },
+    {
+      "id": 13,
+      "title": "Run npm test and fix any failures",
+      "details": "All existing tests (CelebrationOverlay, ExploreCards, etc.) must still pass"
+    },
+    {
+      "id": 14,
+      "title": "Commit and push, write pr-body.md"
+    }
+  ],
+  "expected_tests": [
+    "ListenAndFind renders data-testid=listen-and-find",
+    "ListenAndFind shows 3 choices for age 3",
+    "ListenAndFind shows 4 choices for age 4",
+    "ListenAndFind correct tap calls updateWord(wordId, true)",
+    "ListenAndFind wrong tap does NOT call updateWord",
+    "ListenAndFind 2 wrong taps shows bilingual reveal text",
+    "ListenAndFind reveal does NOT call updateWord",
+    "ListenAndFind progress bar has data-testid=listen-find-progress",
+    "ListenAndFind onComplete fires after all words processed",
+    "MatchingPairs renders data-testid=matching-pairs",
+    "MatchingPairs shows 6 cards for age 3",
+    "MatchingPairs shows 8 cards for age 4",
+    "MatchingPairs matched pair gets data-testid=flip-card-matched",
+    "MatchingPairs non-matching pair: cards flip back (isFlipped resets)",
+    "MatchingPairs already-flipped card tap is ignored (guard)",
+    "MatchingPairs onComplete fires when all matched"
+  ],
+  "risk_areas": [
+    {
+      "area": "Timer cleanup",
+      "description": "ListenAndFind uses setTimeout for 1200ms advance and 2000ms reveal. If component unmounts mid-timer, state updates on unmounted component will fire. Mitigation: useRef isMounted guard or clearTimeout in useEffect cleanup."
+    },
+    {
+      "area": "isFlipping guard race condition",
+      "description": "MatchingPairs isFlipping ref must be set synchronously before setState to prevent rapid double-taps. Using useRef (not useState) is critical here."
+    },
+    {
+      "area": "childAge setting key",
+      "description": "Onboarding stores age under key 'childAge' (assumed). Fallback: default to 4 if setting absent so activities still work on fresh install. No blocking risk."
+    },
+    {
+      "area": "CelebrationOverlay stars prop backward compat",
+      "description": "Existing CelebrationOverlay.test.tsx does not pass stars prop. Adding optional prop with default 3 is safe — tests remain unchanged."
+    },
+    {
+      "area": "Framer Motion in tests",
+      "description": "MatchingPairs uses CSS transform for 3D flip (not Framer Motion), so flip animation is not tested — only state changes are. ListenAndFind uses Framer Motion for shake/bounce — framer-motion mock strips these to plain divs, so animation code paths won't crash but won't visually verify."
+    },
+    {
+      "area": "IDB transaction in progress.ts",
+      "description": "idb library v8 transaction API: db.transaction(store, mode) returns IDBPTransaction. Using tx.store.get/put is straightforward. Risk: TypeScript typing with 'as never' casts may require adjustment."
+    }
+  ],
+  "persistence_strategy": "All progress stored in IndexedDB via updateWordProgress (called on correct answers in both activities) and recordSession (called on activity completion). HomeScreen reads sessions to compute todayWords, which will increase after activities complete. Uses existing idb-backed getProgress/putProgress/addSession — no new storage mechanism needed.",
+  "error_handling_approach": "Pages: try/catch around DB loading with error state + user-visible message ('Could not load words. / 无法加载词语。'). Components accept wordList prop so they never do DB calls themselves — all DB errors surface at page level. useAudio already swallows audio errors gracefully. updateWordProgress failures logged but do not crash activity (wrapped in try/catch in page-level handler)."
+}
