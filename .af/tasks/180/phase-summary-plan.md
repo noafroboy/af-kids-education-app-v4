@@ -1,0 +1,15 @@
+## Plan Summary
+Files to modify: src/app/parent/page.tsx
+Files to create: src/components/layouts/ParentLayout.tsx, src/components/ui/StreakCalendar.tsx, src/components/ui/WordDetailSheet.tsx, src/components/ui/WordListRow.tsx, src/components/parent/ChangePinSection.tsx, src/app/parent/dashboard/page.tsx, src/app/parent/settings/page.tsx, src/__tests__/ParentLayout.test.tsx, src/__tests__/ParentPin.test.tsx, src/__tests__/ParentDashboard.test.tsx, src/__tests__/WordDetailSheet.test.tsx, src/__tests__/StreakCalendar.test.tsx, src/__tests__/ParentSettings.test.tsx
+Approach: Conservative (Approach A) — minimal new code, reuse existing hooks/utilities, extract sub-components only where 150-line limit demands it
+Steps:
+- 1. Create src/components/layouts/ParentLayout.tsx: indigo header with back-to-/ link, bilingual title, optional rightSlot prop, slate-50 body, max-w-lg mx-auto
+- 2. Create src/components/ui/StreakCalendar.tsx: receives sessionDates Set<string>, renders 7-day row ending today, filled coral circle for active days, outline for inactive, coral border ring for today
+- 3. Create src/components/ui/WordListRow.tsx: displays 48x48 word thumbnail (next/image), English word (Nunito Bold), Mandarin word, mastery badge pill; props: word, progress, onClick
+- 4. Create src/components/ui/WordDetailSheet.tsx: Framer Motion fixed bottom sheet (y: 300->0), backdrop overlay, close button, 192x192 image, word text, two audio buttons (useAudio.playWordEn for EN and ZH separately), mastery stats section
+- 5. Create src/components/parent/ChangePinSection.tsx: multi-step PIN change flow (verify current -> enter new -> save hash); extracted to keep settings page under 150 lines
+- 6. Replace src/app/parent/page.tsx: 'use client'; load pinHash from DB on mount; render ParentLayout with PinPad; track wrongAttempts state; on wrong PIN show toast-style inline message; after 3 wrongs show Forgot PIN button and reset modal; on correct PIN router.replace('/parent/dashboard')
+- 7. Create src/app/parent/dashboard/page.tsx: 'use client'; on mount load all data (getAllProgress, getWeeklyStats, getAllWords, getAllSessions) from IndexedDB; show loading skeleton; empty state if no sessions; stats header with weekly words + streak; StreakCalendar; horizontal scrollable category tabs; filtered word list using WordListRow; WordDetailSheet conditional render; Settings link in ParentLayout rightSlot
+- 8. Create src/app/parent/settings/page.tsx: 'use client'; Section 1 child profile (name input pre-filled, age tiles, save to DB); Section 2 Change PIN (renders ChangePinSection); Section 3 Reset Progress (red button, Framer Motion confirm dialog, on confirm db.clear progress+sessions then router.push(/))
+- 9. Write tests: ParentLayout, ParentPin (correct/wrong/forgot), ParentDashboard (loading/empty/stats/filter/sheet), WordDetailSheet (renders/close), StreakCalendar (7 days/today), ParentSettings (save/reset)
+- 10. Run npm test to verify all tests pass
