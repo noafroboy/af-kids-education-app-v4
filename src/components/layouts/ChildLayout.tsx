@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
+import { MascotIdle } from '@/components/ui/MascotIdle';
 
 interface ChildLayoutProps {
   children: React.ReactNode;
@@ -10,10 +13,21 @@ interface ChildLayoutProps {
 
 export function ChildLayout({ children, showHomeButton = true }: ChildLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const isHome = pathname === '/';
+  const [showMascotBubble, setShowMascotBubble] = useState(false);
+
+  useIdleTimeout({
+    enabled: !isHome,
+    onIdle30: () => setShowMascotBubble(true),
+    onIdle60: () => router.push('/'),
+  });
 
   return (
-    <div className="relative max-w-[428px] mx-auto min-h-screen bg-[#FFF9F0] flex flex-col">
+    <div
+      className="relative max-w-[428px] mx-auto min-h-screen bg-[#FFF9F0] flex flex-col"
+      onPointerDown={() => setShowMascotBubble(false)}
+    >
       {children}
       {showHomeButton && !isHome && (
         <Link
@@ -24,6 +38,18 @@ export function ChildLayout({ children, showHomeButton = true }: ChildLayoutProp
         >
           🏠
         </Link>
+      )}
+      {!isHome && (
+        <div
+          className="fixed bottom-6 z-40"
+          style={{ left: 'max(1rem, calc(50vw - 214px + 1rem))' }}
+        >
+          <MascotIdle
+            size="sm"
+            showBubble={showMascotBubble}
+            onClick={() => setShowMascotBubble(false)}
+          />
+        </div>
       )}
     </div>
   );

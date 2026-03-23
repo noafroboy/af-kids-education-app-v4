@@ -13,9 +13,10 @@ import type { VocabularyWord } from '@/types';
 
 interface ExploreCardsProps {
   wordList?: VocabularyWord[];
+  onComplete?: () => void;
 }
 
-export function ExploreCards({ wordList }: ExploreCardsProps) {
+export function ExploreCards({ wordList, onComplete }: ExploreCardsProps) {
   const db = useDB();
   const { updateWord, saveSession } = useProgress();
   const { playWord } = useAudio();
@@ -69,6 +70,10 @@ export function ExploreCards({ wordList }: ExploreCardsProps) {
     await updateWord(currentWord.id, true);
 
     if (currentIndex >= words.length - 1) {
+      if (onComplete) {
+        onComplete();
+        return;
+      }
       const now = new Date().toISOString();
       await saveSession({
         startedAt: new Date(startTimeRef.current).toISOString(),
