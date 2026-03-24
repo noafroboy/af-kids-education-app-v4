@@ -66,7 +66,11 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
   }, [wordList, setupRound]);
 
   useEffect(() => {
-    return () => { timeoutsRef.current.forEach(clearTimeout); };
+    return () => {
+      const ids = timeoutsRef.current;
+      ids.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    };
   }, []);
 
   function advance(nextIndex: number) {

@@ -1,0 +1,59 @@
+{
+  "files_to_modify": [
+    "src/components/activities/ListenAndFind.tsx",
+    "src/components/activities/MatchingPairs.tsx",
+    "src/lib/audio.ts",
+    "src/__tests__/ListenAndFind.test.tsx",
+    "src/__tests__/MatchingPairs.test.tsx",
+    "src/__tests__/audio.test.ts"
+  ],
+  "files_to_create": [],
+  "approach": "Conservative (Approach A): Make the minimum changes required — snapshot the ref value at the top of each cleanup function, and add pendingTimeoutId + cancelPending() to AudioManager. Touch only the three source files and their corresponding test files.",
+  "steps": [
+    {
+      "step": 1,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "In the useEffect cleanup at line 68-70, snapshot timeoutsRef.current before clearing: `const ids = timeoutsRef.current; ids.forEach(clearTimeout); timeoutsRef.current = [];`"
+    },
+    {
+      "step": 2,
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "action": "In the useEffect cleanup at line 114-116, apply the same snapshot fix: `const ids = timeoutsRef.current; ids.forEach(clearTimeout); timeoutsRef.current = [];`"
+    },
+    {
+      "step": 3,
+      "file": "src/lib/audio.ts",
+      "action": "Add `private pendingTimeoutId: ReturnType<typeof setTimeout> | null = null;` as a class instance field. Add public `cancelPending()` method. At the start of `playWord()`, call `this.cancelPending()`. Replace the anonymous `setTimeout(...)` on line 59 with `this.pendingTimeoutId = setTimeout(...)`."
+    },
+    {
+      "step": 4,
+      "file": "src/__tests__/ListenAndFind.test.tsx",
+      "action": "Add test: 'clears timeouts on unmount (no stale-ref leak)'. Render, trigger a tap that schedules a setTimeout, then unmount inside act(). Use jest.spyOn(global, 'clearTimeout') to verify clearTimeout was called."
+    },
+    {
+      "step": 5,
+      "file": "src/__tests__/MatchingPairs.test.tsx",
+      "action": "Add test: 'clears pending timeouts on unmount'. Flip two non-matching cards (schedules 400ms + 800ms timeouts), then unmount — verify no pending timers cause post-unmount state updates."
+    },
+    {
+      "step": 6,
+      "file": "src/__tests__/audio.test.ts",
+      "action": "Add describe block for `cancelPending()`: test it clears a pending timeout; test that calling playWord() a second time before the first timeout fires cancels the first one."
+    }
+  ],
+  "expected_tests": [
+    "ListenAndFind — clears timeouts on unmount (no stale-ref leak)",
+    "MatchingPairs — clears pending timeouts on unmount",
+    "AudioManager — cancelPending — clears pending timeout if one exists",
+    "AudioManager — cancelPending — is a no-op when no pending timeout",
+    "AudioManager — playWord — cancels previous pending timeout on second call"
+  ],
+  "risk_areas": [
+    "The timeoutsRef.current reset (`= []`) in cleanup must not interfere with ongoing renders — safe because cleanup only runs on unmount (deps=[]).",
+    "audio.ts cancelPending only cancels the inter-word delay setTimeout, not the Howl playback itself. This is intentional per the task spec.",
+    "The existing audio.test.ts uses `freshAudioManager()` which re-requires the module — new tests must follow this same pattern to avoid singleton state pollution.",
+    "MatchingPairs has a nested setTimeout inside the setCards callback (line 91: setTimeout(() => checkComplete(updated), 0)) — this is NOT pushed to timeoutsRef and is intentionally a zero-delay flush, so it does not need fixing."
+  ],
+  "persistence_strategy": "N/A — this task makes no data storage changes. All changes are in-memory timer management within React component lifecycles.",
+  "error_handling_approach": "N/A — no new external calls or async operations are introduced. Existing error handling is unchanged."
+}

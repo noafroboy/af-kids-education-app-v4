@@ -112,7 +112,11 @@ export function MatchingPairs({ wordList, age, onComplete }: MatchingPairsProps)
   }
 
   useEffect(() => {
-    return () => { timeoutsRef.current.forEach(clearTimeout); };
+    return () => {
+      const ids = timeoutsRef.current;
+      ids.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    };
   }, []);
 
   function handleNewGame() {

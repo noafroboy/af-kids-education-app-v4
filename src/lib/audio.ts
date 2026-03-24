@@ -8,6 +8,7 @@ class AudioManager {
   private isPlaying = false;
   private error = false;
   private cache: Map<string, Howl> = new Map();
+  private pendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   unlockAudioContext(): void {
     if (this.iOSUnlocked) return;
@@ -42,7 +43,15 @@ class AudioManager {
     return this.cache.get(path)!;
   }
 
+  cancelPending(): void {
+    if (this.pendingTimeoutId !== null) {
+      clearTimeout(this.pendingTimeoutId);
+      this.pendingTimeoutId = null;
+    }
+  }
+
   playWord(enPath: string, zhPath: string): Promise<void> {
+    this.cancelPending();
     if (this.error) {
       [enPath, zhPath].forEach((p) => {
         if (this.cache.has(p)) {
@@ -56,7 +65,8 @@ class AudioManager {
     return new Promise((resolve) => {
       const enHowl = this.getOrCreate(enPath);
       enHowl.once('end', () => {
-        setTimeout(() => {
+        this.pendingTimeoutId = setTimeout(() => {
+          this.pendingTimeoutId = null;
           const zhHowl = this.getOrCreate(zhPath);
           zhHowl.once('end', () => {
             this.isPlaying = false;
