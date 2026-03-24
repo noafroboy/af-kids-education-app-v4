@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { ListenAndFind } from '@/components/activities/ListenAndFind';
+import { audioManager } from '@/lib/audio';
 import type { VocabularyWord } from '@/types';
 
 // Mock framer-motion
@@ -54,7 +55,12 @@ jest.mock('@/hooks/useAudio', () => ({
   }),
 }));
 
-// Mock HTML Audio element
+// Mock audioManager (factory uses jest.fn() directly to avoid hoisting TDZ)
+jest.mock('@/lib/audio', () => ({
+  audioManager: { playWordEn: jest.fn() },
+}));
+
+// Keep global.Audio mock so any residual usage doesn't throw
 const mockPlay = jest.fn().mockResolvedValue(undefined);
 Object.defineProperty(global, 'Audio', {
   writable: true,
@@ -119,8 +125,15 @@ describe('ListenAndFind', () => {
 
   it('plays audio on mount with first word audioEnPath', () => {
     render(<ListenAndFind wordList={testWords} age={4} onComplete={mockOnComplete} />);
-    expect(global.Audio).toHaveBeenCalledWith(testWords[0].audioEnPath);
-    expect(mockPlay).toHaveBeenCalled();
+    expect(audioManager.playWordEn).toHaveBeenCalledWith(testWords[0].audioEnPath);
+  });
+
+  it('Play Again button calls audioManager.playWordEn with current word audioEnPath', () => {
+    render(<ListenAndFind wordList={testWords} age={4} onComplete={mockOnComplete} />);
+    jest.mocked(audioManager.playWordEn).mockClear();
+    const playAgainBtn = screen.getByText('Play Again / 再播放');
+    fireEvent.click(playAgainBtn);
+    expect(audioManager.playWordEn).toHaveBeenCalledWith(testWords[0].audioEnPath);
   });
 
   it('tapping correct card calls updateWord with wordId and true', async () => {
