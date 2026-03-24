@@ -225,6 +225,30 @@ describe('MatchingPairs', () => {
     }
   });
 
+  it('clears pending timeouts on unmount without post-unmount errors', () => {
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    const { unmount } = render(
+      <MatchingPairs wordList={threeWords} age={3} onComplete={mockOnComplete} />
+    );
+
+    // Flip two cards to schedule the 400ms + 800ms timers
+    const cards = screen.getAllByTestId('flip-card');
+    fireEvent.click(cards[0]);
+    fireEvent.click(cards[1]);
+
+    // Unmount before either timer fires — cleanup should cancel them
+    act(() => { unmount(); });
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    // Advance timers after unmount — should not throw any errors
+    expect(() => {
+      act(() => { jest.runAllTimers(); });
+    }).not.toThrow();
+
+    clearTimeoutSpy.mockRestore();
+  });
+
   it('onComplete fires when all pairs are matched', async () => {
     // Use a single word pair for simplicity (age=3 but pass 1 word, boardSize=3 min)
     // Use threeWords but verify callback eventually fires

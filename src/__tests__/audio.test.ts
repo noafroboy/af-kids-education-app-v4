@@ -3,10 +3,12 @@ import { Howl } from 'howler';
 type TestableAudioManager = {
   playWordEn: (path: string) => void;
   playWord: (en: string, zh: string) => Promise<void>;
+  cancelPending: () => void;
   hasError: boolean;
   playing: boolean;
   error: boolean;
   cache: Map<string, InstanceType<typeof Howl>>;
+  pendingTimeoutId: ReturnType<typeof setTimeout> | null;
 };
 
 // Re-import the module fresh each time to get an isolated singleton
@@ -130,6 +132,62 @@ describe('AudioManager — error state reset', () => {
 
       expect(unloadEn).not.toHaveBeenCalled();
       expect(unloadZh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelPending()', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('is a no-op when pendingTimeoutId is null', () => {
+      const mgr = freshAudioManager();
+      expect((mgr as unknown as { pendingTimeoutId: ReturnType<typeof setTimeout> | null }).pendingTimeoutId).toBeNull();
+      // Should not throw
+      expect(() => mgr.cancelPending()).not.toThrow();
+      expect((mgr as unknown as { pendingTimeoutId: ReturnType<typeof setTimeout> | null }).pendingTimeoutId).toBeNull();
+    });
+
+    it('clears the pending timeout and sets pendingTimeoutId to null', () => {
+      const mgr = freshAudioManager();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+      // Manually set a fake pending timeout ID
+      const fakeId = setTimeout(() => {}, 10000);
+      (mgr as unknown as { pendingTimeoutId: ReturnType<typeof setTimeout> | null }).pendingTimeoutId = fakeId;
+
+      mgr.cancelPending();
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(fakeId);
+      expect((mgr as unknown as { pendingTimeoutId: ReturnType<typeof setTimeout> | null }).pendingTimeoutId).toBeNull();
+
+      clearTimeoutSpy.mockRestore();
+    });
+
+    it('calling playWord() twice cancels the first pending timeout', () => {
+      const mgr = freshAudioManager();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+      // First call — this starts the EN howl; no setTimeout yet (it's queued inside 'end' event)
+      // To test the cancellation, we manually simulate the scenario by setting pendingTimeoutId
+      // between the two calls (as if the 'end' event fired after the first playWord call).
+      mgr.playWord('/audio/en1.mp3', '/audio/zh1.mp3');
+
+      // Simulate the 'end' event having fired and the setTimeout being scheduled
+      const firstTimeoutId = setTimeout(() => {}, 10000);
+      (mgr as unknown as { pendingTimeoutId: ReturnType<typeof setTimeout> | null }).pendingTimeoutId = firstTimeoutId;
+
+      // Second call should cancel the first pending timeout
+      mgr.playWord('/audio/en2.mp3', '/audio/zh2.mp3');
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(firstTimeoutId);
+      expect((mgr as unknown as { pendingTimeoutId: ReturnType<typeof setTimeout> | null }).pendingTimeoutId).toBeNull();
+
+      clearTimeoutSpy.mockRestore();
     });
   });
 });

@@ -247,4 +247,24 @@ describe('ListenAndFind', () => {
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });
+
+  it('clears all pending timeouts on unmount', () => {
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    const singleWordList = [testWords[0]];
+    const { unmount } = render(
+      <ListenAndFind wordList={singleWordList} age={3} onComplete={mockOnComplete} />
+    );
+
+    // Tap the correct card to schedule a 1200ms advance timeout
+    const correctCard = screen.getByAltText('Cat');
+    fireEvent.click(correctCard.closest('[data-testid="choice-card"]')!);
+
+    // Unmount before the timer fires
+    act(() => { unmount(); });
+
+    // clearTimeout should have been called (for the scheduled advance timer)
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+  });
 });
