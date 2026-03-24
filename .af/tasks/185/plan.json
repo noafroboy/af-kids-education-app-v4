@@ -1,0 +1,139 @@
+{
+  "files_to_create": [
+    {
+      "path": "src/hooks/useParentAuth.ts",
+      "purpose": "Client-side hook that reads sessionStorage flag 'parentAuthed' === '1'. Redirects to /parent if absent.",
+      "lines_estimated": 20
+    },
+    {
+      "path": "src/__tests__/useParentAuth.test.ts",
+      "purpose": "Unit tests for the new useParentAuth hook: authed case, unauthenticated redirect case.",
+      "lines_estimated": 60
+    },
+    {
+      "path": "src/__tests__/ChangePinSection.test.tsx",
+      "purpose": "Unit tests for ChangePinSection: verify step, new PIN step, done state, error feedback on save failure.",
+      "lines_estimated": 90
+    }
+  ],
+  "files_to_modify": [
+    {
+      "path": "src/app/parent/page.tsx",
+      "changes": [
+        "In handlePinSubmit: add sessionStorage.setItem('parentAuthed', '1') before router.replace when ok===true",
+        "Replace silent 'if (!pinHash) return;' with onboarding-aware redirect or user-visible error message"
+      ]
+    },
+    {
+      "path": "src/app/parent/dashboard/page.tsx",
+      "changes": [
+        "Import and call useParentAuth; add 'if (!isAuthed) return null' guard",
+        "Add childName state variable",
+        "Add getSetting(db, 'childName') to Promise.all data fetch",
+        "Set childName after fetch",
+        "Update ParentLayout title prop to use child name with fallback to generic title (applied to loading skeleton AND main render)"
+      ]
+    },
+    {
+      "path": "src/app/parent/settings/page.tsx",
+      "changes": [
+        "Import and call useParentAuth; add 'if (!isAuthed) return null' guard"
+      ]
+    },
+    {
+      "path": "src/components/parent/ChangePinSection.tsx",
+      "changes": [
+        "In handleNewPin catch block: call setErrorMsg('Failed to save new PIN / 保存失败') to surface the error to the user"
+      ]
+    },
+    {
+      "path": "src/__tests__/ParentPin.test.tsx",
+      "changes": [
+        "Add test: sessionStorage 'parentAuthed' flag is set to '1' on correct PIN entry",
+        "Add test: shows error message when pinHash is empty",
+        "Mock sessionStorage in beforeEach to allow assertions"
+      ]
+    },
+    {
+      "path": "src/__tests__/ParentDashboard.test.tsx",
+      "changes": [
+        "Add mock for '@/hooks/useParentAuth' returning { isAuthed: true } to prevent redirect",
+        "Add mockGetSetting to the db mock and configure it to return childName in beforeEach",
+        "Add test: shows child name in title when childName is set",
+        "Add test: shows generic title when childName is empty"
+      ]
+    },
+    {
+      "path": "src/__tests__/ParentSettings.test.tsx",
+      "changes": [
+        "Add mock for '@/hooks/useParentAuth' returning { isAuthed: true } to prevent redirect"
+      ]
+    }
+  ],
+  "approach": "A-Conservative",
+  "steps": [
+    "1. Create git branch af/185-task-parent-area-security-ux-pin-guard-h/1",
+    "2. Create src/hooks/useParentAuth.ts per exact spec",
+    "3. Modify src/app/parent/page.tsx: set sessionStorage on success, handle empty pinHash",
+    "4. Modify src/app/parent/dashboard/page.tsx: add auth guard, add childName fetch and display",
+    "5. Modify src/app/parent/settings/page.tsx: add auth guard",
+    "6. Modify src/components/parent/ChangePinSection.tsx: add error feedback in catch",
+    "7. Create src/__tests__/useParentAuth.test.ts",
+    "8. Create src/__tests__/ChangePinSection.test.tsx",
+    "9. Update src/__tests__/ParentPin.test.tsx with new tests",
+    "10. Update src/__tests__/ParentDashboard.test.tsx with useParentAuth mock and childName tests",
+    "11. Update src/__tests__/ParentSettings.test.tsx with useParentAuth mock",
+    "12. Run npm test and fix failures",
+    "13. Commit and push",
+    "14. Write .af/tasks/185/pr-body.md"
+  ],
+  "expected_tests": {
+    "new_test_files": [
+      "src/__tests__/useParentAuth.test.ts",
+      "src/__tests__/ChangePinSection.test.tsx"
+    ],
+    "modified_test_files": [
+      "src/__tests__/ParentPin.test.tsx",
+      "src/__tests__/ParentDashboard.test.tsx",
+      "src/__tests__/ParentSettings.test.tsx"
+    ],
+    "test_cases": [
+      "useParentAuth: redirects to /parent when sessionStorage flag absent",
+      "useParentAuth: sets isAuthed=true when flag present",
+      "ParentPage: sets sessionStorage parentAuthed=1 on correct PIN",
+      "ParentPage: shows error message when pinHash is empty",
+      "ParentDashboard: shows child name in title when stored",
+      "ParentDashboard: shows generic title when no child name",
+      "ChangePinSection: shows error feedback when save fails"
+    ]
+  },
+  "risk_areas": [
+    {
+      "area": "Test compatibility — useParentAuth in dashboard/settings tests",
+      "risk": "Medium",
+      "mitigation": "Mock '@/hooks/useParentAuth' returning { isAuthed: true } in affected test files to bypass the guard"
+    },
+    {
+      "area": "ParentDashboard test — getSetting not in existing db mock",
+      "risk": "Medium",
+      "mitigation": "Add getSetting to the @/lib/db mock in ParentDashboard.test.tsx and configure it to return childName"
+    },
+    {
+      "area": "sessionStorage in jsdom",
+      "risk": "Low",
+      "mitigation": "jsdom provides sessionStorage; use jest.spyOn(sessionStorage, 'setItem') or set/read directly"
+    },
+    {
+      "area": "settings page already 159 lines, dashboard 153 lines",
+      "risk": "Low",
+      "mitigation": "Task rules say 'do not refactor code outside scope'; adding minimal lines is acceptable since files already exceed 150"
+    },
+    {
+      "area": "Empty pinHash with db=null race condition",
+      "risk": "Low",
+      "mitigation": "Guard with 'if (db)' before DB call in empty-pinHash path, same as existing pattern"
+    }
+  ],
+  "persistence_strategy": "No new persistence needed. Auth flag uses sessionStorage (session-scoped, cleared on tab close). childName is read from existing IndexedDB settings store.",
+  "error_handling_approach": "Every new code path has try/catch with user-visible error message. useParentAuth redirects silently (no error needed). Empty pinHash shows informative bilingual error. ChangePinSection save failure shows red error text."
+}
