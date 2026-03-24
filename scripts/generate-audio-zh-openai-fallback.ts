@@ -1,3 +1,4 @@
+// For targeted regeneration of specific broken files, use generate-audio-zh-fix.ts instead
 /**
  * Temporary fallback: generates Mandarin TTS using OpenAI nova voice.
  * Use this when GOOGLE_APPLICATION_CREDENTIALS is not available.
@@ -39,12 +40,20 @@ async function main(): Promise<void> {
         }
         try {
           const response = await client.audio.speech.create({
-            model: 'tts-1',
+            model: 'tts-1-hd',
             voice: 'nova',
             input: word.mandarinWord,
             speed: 0.85,
           });
           const buffer = Buffer.from(await response.arrayBuffer());
+          if (buffer.length < 3 ||
+            !(
+              (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) ||
+              (buffer[0] === 0xff && (buffer[1] === 0xfb || buffer[1] === 0xfa || buffer[1] === 0xf3))
+            )
+          ) {
+            throw new Error(`Invalid MP3 header for "${word.englishWord}". First bytes: ${buffer.slice(0, 4).toString('hex')}`);
+          }
           fs.writeFileSync(outputPath, buffer);
           console.log(`✅ [${done}/${total}] Generated ZH ${word.englishWord} (${word.mandarinWord})`);
           generated++;
