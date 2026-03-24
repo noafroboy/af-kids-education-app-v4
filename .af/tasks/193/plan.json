@@ -1,0 +1,77 @@
+{
+  "files_to_modify": [
+    {
+      "path": "src/app/layout.tsx",
+      "reason": "Add Noto_Sans_SC font import, configure it, and apply its CSS variable to the <html> element className"
+    },
+    {
+      "path": "src/components/ui/VocabularyCard.tsx",
+      "reason": "Change Mandarin text from 24px to 36px and apply Noto Sans SC font family via CSS variable"
+    }
+  ],
+  "files_to_create": [
+    {
+      "path": "src/components/ui/mascot.tsx",
+      "reason": "Required by task; file does not currently exist in the codebase"
+    }
+  ],
+  "approach": "A — Conservative: inline style for font-family on Mandarin text; no changes to tailwind.config.ts; no new utility classes; minimal diff",
+  "steps": [
+    {
+      "step": 1,
+      "file": "src/app/layout.tsx",
+      "action": "Add Noto_Sans_SC to the next/font/google import alongside Nunito and Fredoka"
+    },
+    {
+      "step": 2,
+      "file": "src/app/layout.tsx",
+      "action": "Configure notoSansSC with subsets: ['latin'], weight: ['400','700'], variable: '--font-noto-sans-sc', display: 'swap'"
+    },
+    {
+      "step": 3,
+      "file": "src/app/layout.tsx",
+      "action": "Append notoSansSC.variable to the <html> className alongside nunito.variable and fredoka.variable"
+    },
+    {
+      "step": 4,
+      "file": "src/components/ui/VocabularyCard.tsx",
+      "action": "On the mandarinWord <p> element: change text-[24px] to text-[36px] and replace fontFamily style from var(--font-nunito) to var(--font-noto-sans-sc)"
+    },
+    {
+      "step": 5,
+      "file": "src/components/ui/mascot.tsx",
+      "action": "Create simple panda emoji component under 40 lines with MascotProps interface"
+    },
+    {
+      "step": 6,
+      "action": "Run npm test to confirm all existing tests still pass"
+    },
+    {
+      "step": 7,
+      "action": "Run tsc --noEmit to confirm TypeScript compiles without errors"
+    }
+  ],
+  "expected_tests": [
+    {
+      "file": "src/__tests__/VocabularyCard.test.tsx",
+      "status": "existing — all 7 tests should continue to pass; no font-style assertions exist in the suite",
+      "action": "Run existing suite; no additions needed since the font/size changes are visual-only and the DOM text assertions are unaffected"
+    }
+  ],
+  "risk_areas": [
+    {
+      "risk": "Noto_Sans_SC subset identifier — task explicitly notes 'chinese-simplified' is not a valid subset string in next/font/google; 'latin' must be used",
+      "mitigation": "Use subsets: ['latin'] as directed"
+    },
+    {
+      "risk": "Card overflow at 375px viewport — 36px Mandarin text on a short word (e.g. 猫) is fine but a long phrase (e.g. 苹果汁) might push width. Card uses max-w-sm (384px) with p-6 (24px each side), image is w-64 (256px). Text is centered and wraps freely.",
+      "mitigation": "The container is flex-col + text-center; CJK characters wrap naturally. No horizontal overflow risk for typical vocabulary word lengths (1-4 characters). If needed, add break-words to the Mandarin <p>."
+    },
+    {
+      "risk": "Font variable not available at render time causing FOUT",
+      "mitigation": "display: 'swap' is used by default; Next.js injects the CSS variable before render via its font optimization pipeline"
+    }
+  ],
+  "persistence_strategy": "N/A — this task is purely UI/CSS; no data is read or written",
+  "error_handling_approach": "N/A — no external calls or async operations are introduced by this task"
+}

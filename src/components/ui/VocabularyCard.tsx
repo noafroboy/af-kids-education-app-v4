@@ -44,7 +44,7 @@ export function VocabularyCard({ word, onTap }: VocabularyCardProps) {
         >
           {word.englishWord}
         </p>
-        <p className="text-[24px] font-bold text-slate-700" style={{ fontFamily: 'var(--font-nunito)' }}>
+        <p className="text-[36px] font-bold text-slate-700 leading-tight" style={{ fontFamily: 'var(--font-noto-sans-sc)' }}>
           {word.mandarinWord}
         </p>
         <p className="text-[16px] italic text-slate-400" style={{ fontFamily: 'var(--font-nunito)' }}>

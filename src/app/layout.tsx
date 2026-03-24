@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Nunito, Fredoka } from 'next/font/google';
+import { Nunito, Fredoka, Noto_Sans_SC } from 'next/font/google';
 import './globals.css';
 
 const nunito = Nunito({
@@ -13,6 +13,13 @@ const fredoka = Fredoka({
   subsets: ['latin'],
   weight: ['400'],
   variable: '--font-fredoka',
+  display: 'swap',
+});
+
+const notoSansSC = Noto_Sans_SC({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-noto-sans-sc',
   display: 'swap',
 });
 
@@ -33,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN" className={`${nunito.variable} ${fredoka.variable}`}>
+    <html lang="zh-CN" className={`${nunito.variable} ${fredoka.variable} ${notoSansSC.variable}`}>
       <body className="min-h-screen bg-[#FFF9F0]">
         {children}
       </body>
