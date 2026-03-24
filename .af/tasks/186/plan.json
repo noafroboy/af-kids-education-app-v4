@@ -1,0 +1,38 @@
+{
+  "files_to_modify": [
+    "src/components/session/GreetingStep.tsx",
+    "src/components/activities/SongPlayer.tsx",
+    "src/__tests__/SongTime.test.tsx"
+  ],
+  "files_to_create": [
+    "src/components/activities/SongCoverArt.tsx",
+    "src/components/activities/SongPlayerControls.tsx"
+  ],
+  "approach": "APPROACH A — Conservative: implement exactly the spec with minimal scope, following existing patterns",
+  "steps": [
+    "1. Verify public/audio/en/hello.mp3 exists (confirmed: it does)",
+    "2. Create src/components/activities/SongCoverArt.tsx — image with 🎵 fallback on error",
+    "3. Create src/components/activities/SongPlayerControls.tsx — play/pause button + inline error UI with retry",
+    "4. Modify src/components/activities/SongPlayer.tsx — add retryCount state, update Howl useEffect deps, add handleRetry, remove imgError, remove early-return error block, replace cover art inline JSX with <SongCoverArt>, replace loading+play inline JSX with <SongPlayerControls>, add new imports",
+    "5. Modify src/components/session/GreetingStep.tsx — import audioManager, add second useEffect that calls audioManager.playWordEn('/audio/en/hello.mp3') on mount",
+    "6. Update src/__tests__/SongTime.test.tsx — add tests: retry creates new Howl instance (Howl constructor called twice), play button briefly disabled after retry (audioReady=false), GreetingStep audio call on mount",
+    "7. Run npm test to verify all tests pass",
+    "8. Confirm SongPlayer.tsx line count is ≤200",
+    "9. Commit and push"
+  ],
+  "expected_tests": [
+    "retry button triggers new Howl constructor call (retryCount mechanism creates fresh Howl)",
+    "after clicking retry, song-play-btn is disabled while new Howl loads (audioReady=false)",
+    "SongCoverArt renders 🎵 emoji fallback when image onError fires",
+    "SongPlayerControls renders ▶ when isPlaying=false, ⏸ when isPlaying=true",
+    "GreetingStep calls audioManager.playWordEn('/audio/en/hello.mp3') on mount"
+  ],
+  "risk_areas": [
+    "Existing 'retry button clears error state' test must still pass — it checks that 'Song unavailable' text disappears after retry; with retryCount approach this still works because useEffect resets audioError=false",
+    "React 19 Strict Mode double-invocation of effects may call audioManager.playWordEn twice in dev; acceptable for audio enhancement",
+    "The useEffect Howl dependency chain (handleSongEnd, cancelRaf) must remain stable via useCallback — already the case in existing code",
+    "Removing early-return audioError block and handling it inline means existing tests that check for song-player testid on error state will now always find it (which is correct)"
+  ],
+  "persistence_strategy": "N/A — these are pure UI/audio components. No new data is introduced. SongTime's existing IndexedDB play-count persistence via putSong is unchanged.",
+  "error_handling_approach": "SongPlayerControls renders inline error UI with Retry button — no silent failures. audioManager.playWordEn has try/catch. After retry, new Howl loaderror will set audioError=true again if second load attempt also fails — error UI reappears."
+}
