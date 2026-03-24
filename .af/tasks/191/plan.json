@@ -1,0 +1,118 @@
+{
+  "task_id": 191,
+  "title": "Fix webpack runtime error — incomplete node_modules stub in worktree",
+  "approach": "APPROACH_A_CONSERVATIVE",
+  "root_cause": "The worktree at /worktrees/191/ has a fake/stub node_modules containing only stripped versions of 'next' (missing dist/shared/, dist/lib/, dist/client/, etc.) and 'styled-jsx'. These stubs shadow the full Next.js 15.1.0 installation in the parent workspace's node_modules, causing webpack to fail with 'Module not found: Can't resolve ../shared/lib/utils' and related errors.",
+  "files_to_modify": [],
+  "files_to_create": [
+    ".af/tasks/191/plan.md",
+    ".af/tasks/191/plan.json",
+    ".af/tasks/191/pr-body.md"
+  ],
+  "infrastructure_changes": [
+    "Remove stub node_modules directory from worktree",
+    "Run npm install to create a complete node_modules installation"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "action": "Confirm root cause",
+      "detail": "Verify that node_modules/next/dist/shared/ is missing from worktree, and that parent workspace has the full installation at /Users/kevinliu/.appfactory/workspaces/kids-education-app-v4/node_modules/next",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 2,
+      "action": "Remove stub node_modules",
+      "detail": "Delete /worktrees/191/node_modules entirely so Node.js module resolution falls back to the parent workspace's full installation. The parent has 546 packages at 516MB, matching the same package.json (same git repo).",
+      "command": "rm -rf /Users/kevinliu/.appfactory/workspaces/kids-education-app-v4/worktrees/191/node_modules"
+    },
+    {
+      "step": 3,
+      "action": "Verify build passes",
+      "detail": "Run npm run build. If it fails because webpack cannot find parent node_modules (e.g. Next.js resolves modules only relative to the project root), fall back to running npm install instead.",
+      "command": "cd /Users/kevinliu/.appfactory/workspaces/kids-education-app-v4/worktrees/191 && npm run build",
+      "fallback": "npm install && npm run build"
+    },
+    {
+      "step": 4,
+      "action": "Start dev server and verify pages",
+      "detail": "Start dev server on port 3042. Check HTTP response codes for /, /activities/explore-cards, /activities/listen-find, /parent. All must return 200, not 500.",
+      "command": "npm run dev -- -p 3042"
+    },
+    {
+      "step": 5,
+      "action": "Verify onboarding flow",
+      "detail": "Open a fresh browser (empty IndexedDB). Navigate to /. Should redirect to /onboarding. Enter child name → select age group → enter 4-digit PIN → confirm PIN → reach home screen showing child's name and activity buttons.",
+      "verification_points": [
+        "/ redirects to /onboarding for new users",
+        "Name input accepts text",
+        "Age group selection works",
+        "4-digit PIN entry works",
+        "PIN confirmation matches",
+        "Home screen shows child's name",
+        "Activity buttons (Explore Cards, Listen & Find, Matching Pairs, Song Time) are visible"
+      ]
+    },
+    {
+      "step": 6,
+      "action": "Verify activity pages load",
+      "detail": "Navigate to each activity page and confirm no 500 error. /activities/explore-cards shows vocabulary cards. /activities/listen-find shows game UI. /parent shows PIN gate.",
+      "pages_to_check": [
+        "/",
+        "/activities/explore-cards",
+        "/activities/listen-find",
+        "/parent"
+      ]
+    },
+    {
+      "step": 7,
+      "action": "Run existing tests",
+      "detail": "Run npm test to verify all 207 unit tests still pass after the fix.",
+      "command": "npm test"
+    },
+    {
+      "step": 8,
+      "action": "Commit and write PR body",
+      "detail": "Commit with descriptive message explaining WHY (corrupted node_modules stub shadowing full installation). Write .af/tasks/191/pr-body.md."
+    }
+  ],
+  "expected_tests": [
+    "All 207 existing unit tests must pass",
+    "npm run build exits with code 0",
+    "All 4 required pages return HTTP 200",
+    "Onboarding flow completes end-to-end"
+  ],
+  "risk_areas": [
+    {
+      "risk": "Next.js webpack might not resolve modules from parent directory if it uses absolute paths for resolve.modules",
+      "mitigation": "If build still fails after removing stub, run npm install to create full local installation",
+      "probability": "Low"
+    },
+    {
+      "risk": "Parent node_modules might have cached/stale packages that differ from worktree package-lock.json",
+      "mitigation": "If npm test shows version-related failures, run npm install in worktree",
+      "probability": "Low — same git repo, same package.json"
+    },
+    {
+      "risk": "Other worktrees might also be affected by the same stub node_modules issue",
+      "mitigation": "Out of scope — only fix worktree 191 as per task",
+      "probability": "Unknown"
+    }
+  ],
+  "persistence_strategy": "N/A — this task fixes infrastructure, not data persistence. App uses IndexedDB (browser-local) for all data, which survives page refresh.",
+  "error_handling_approach": "N/A — this task fixes infrastructure. Existing components already have try/catch with user-facing error messages (verified in code review).",
+  "no_source_file_changes": true,
+  "rationale": "The root cause is entirely in the node_modules directory (untracked, in .gitignore). No source files need to be changed. The fix is purely infrastructure: remove the incomplete stub and restore proper module resolution.",
+  "build_failure_details": {
+    "errors": [
+      "Module not found: Can't resolve '../shared/lib/utils' in node_modules/next/dist/pages/_app.js",
+      "Module not found: Can't resolve '../shared/lib/constants' in node_modules/next/dist/pages/_document.js",
+      "Module not found: Can't resolve '../server/get-page-files' in node_modules/next/dist/pages/_document.js",
+      "Module not found: Can't resolve '../server/htmlescape' in node_modules/next/dist/pages/_document.js",
+      "Module not found: Can't resolve '../lib/is-error' in node_modules/next/dist/pages/_document.js"
+    ],
+    "cause": "node_modules/next/dist/ only has compiled/, pages/, server/ — missing shared/, lib/, client/, build/, esm/, etc.",
+    "stub_size": "248K (2 packages: next + styled-jsx)",
+    "parent_size": "516MB (546 packages — full installation)"
+  }
+}
