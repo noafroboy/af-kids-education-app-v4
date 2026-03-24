@@ -2,7 +2,7 @@
 
 ## Summary
 
-All 15 Playwright E2E tests pass. All 178 Jest unit tests pass. TypeScript compiles with zero errors.
+All 15 Playwright E2E tests pass. All 178 Jest unit tests pass. TypeScript compiles with zero errors. ESLint passes with zero warnings or errors.
 
 ---
 
@@ -100,11 +100,13 @@ All 15 Playwright E2E tests pass. All 178 Jest unit tests pass. TypeScript compi
 | `start-session-btn` tap target 64px < 88px | `src/components/HomeScreen.tsx` | Changed `min-h-[64px]` → `min-h-[88px]` |
 | `parent-icon` tap target 48px < 88px | `src/components/HomeScreen.tsx` | Changed `w-12 h-12` → `w-[88px] h-[88px]` |
 | SongPlayer.tsx 235 lines > 200 limit | `src/components/activities/SongPlayer.tsx` | Extracted `SongLyricsPanel.tsx` (97 lines); SongPlayer now 185 lines |
+| ESLint plugin conflict with parent workspace config | `.eslintrc.json` | Added `"root": true` to prevent ESLint traversing to parent `../../.eslintrc.json` |
 
 ---
 
 ## Test Performance
 
-- **Playwright E2E total**: 19.7 seconds (limit: 90 seconds) ✅
+- **Playwright E2E total**: 18.2 seconds (limit: 90 seconds) ✅
 - **Jest unit tests**: 3.6 seconds, 178/178 pass ✅
 - **TypeScript**: Zero errors ✅
+- **ESLint**: Zero warnings or errors ✅

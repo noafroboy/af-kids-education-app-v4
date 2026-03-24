@@ -22,12 +22,14 @@
 - `src/components/HomeScreen.tsx` — Fixed `start-session-btn` (`min-h-[64px]` → `min-h-[88px]`) and `parent-icon` (`w-12 h-12` → `w-[88px] h-[88px]`) tap targets
 - `src/components/activities/SongPlayer.tsx` — Refactored to use `SongLyricsPanel` (now 185 lines, down from 235)
 - `package.json` — Added `test:e2e` script and `@playwright/test` dev dependency
+- `.eslintrc.json` — Added `"root": true` to prevent ESLint from picking up the parent workspace config and causing plugin conflicts
 
 ## Testing
 
-- `npx playwright test` — 15/15 tests pass in 19.7s (limit: 90s) ✅
+- `npx playwright test` — 15/15 tests pass in 18.2s (limit: 90s) ✅
 - `npm test` — 178/178 Jest unit tests pass, no regressions ✅
 - `npx tsc --noEmit` — Zero TypeScript errors ✅
+- `npm run lint` — Zero ESLint warnings or errors ✅
 - All 4 activity routes verified to render non-empty content at 375px viewport
 - IndexedDB persistence verified: page.reload() after onboarding shows home screen with child name
 - Parent dashboard PIN flow: wrong PIN → "Wrong PIN (N/3)" error, correct PIN → dashboard redirect
