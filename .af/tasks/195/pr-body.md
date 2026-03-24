@@ -11,8 +11,8 @@
   - Body parts: `eyes.mp3`, `nose.mp3`, `mouth.mp3`, `hand.mp3`, `foot.mp3`
 - Regenerated using OpenAI TTS (`tts-1-hd`, `nova` voice) — all files now 11–14 KB with valid MP3 headers
 
-### Infrastructure Fix
-- Removed a broken partial `node_modules/next` directory from the worktree (had only 3 of 18 subdirectories) that was shadowing the complete parent-workspace installation and causing webpack build failures on second+ builds
+### Build Reliability Fix (`next.config.ts`)
+- Removed `output: 'standalone'` from `next.config.ts` — this setting was causing Next.js to write partial stub modules to `./node_modules/next/dist/` during build tracing, which shadowed the parent workspace's full installation and caused webpack `Module not found` errors on second+ builds. The app is fully static (all 13 routes prerendered as static content) so standalone mode provided no benefit.
 
 ### Documentation
 - Created `.af/tasks/195/integration-report.md` documenting pass/fail for every acceptance criterion

@@ -17,7 +17,7 @@
 - Prebuild (`verify-assets`): All 300 assets verified (100 words × 3 files each — image + EN audio + ZH audio)
 - TypeScript/ESLint: Zero errors
 - Next.js build: Exit code 0, all 13 static pages generated
-- **Issue fixed**: Discovered broken partial `node_modules/next` in the worktree directory (only 3 subdirs instead of 18). The second build attempt failed because the partial local `node_modules/next` shadowed the complete parent-workspace installation. Resolved by removing the broken worktree-level `node_modules` so build falls back to the full workspace installation.
+- **Issue fixed**: `output: 'standalone'` in `next.config.ts` was causing Next.js to write partial stub modules (`dist/pages/`, `dist/server/`, `dist/compiled/`) to `./node_modules/next/` during build tracing. These stubs (only 3 of 18 subdirs) shadowed the complete parent-workspace installation on subsequent builds, causing webpack `Module not found` errors. Fixed by removing `output: 'standalone'` — the app is fully static (all 13 routes show `○ Static`) and doesn't benefit from standalone server mode. Build now passes reliably on all runs.
 
 ---
 
