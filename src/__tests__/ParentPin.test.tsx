@@ -48,6 +48,7 @@ jest.mock('@/lib/crypto', () => ({
 describe('ParentPage (PIN entry)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    sessionStorage.clear();
     mockGetSetting.mockResolvedValue({ key: 'pinHash', value: 'stored-hash' });
     mockVerifyPIN.mockResolvedValue(false);
   });
@@ -165,5 +166,61 @@ describe('ParentPage (PIN entry)', () => {
       expect(mockClearSessions).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith('/onboarding');
     });
+  });
+
+  it('sets sessionStorage parentAuthed=1 on successful PIN entry', async () => {
+    mockVerifyPIN.mockResolvedValue(true);
+    render(<ParentPage />);
+    await waitFor(() => expect(mockGetSetting).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('pin-key-1'));
+    fireEvent.click(screen.getByTestId('pin-key-2'));
+    fireEvent.click(screen.getByTestId('pin-key-3'));
+    fireEvent.click(screen.getByTestId('pin-key-4'));
+
+    await new Promise((r) => setTimeout(r, 200));
+    await waitFor(() => {
+      expect(sessionStorage.getItem('parentAuthed')).toBe('1');
+      expect(mockReplace).toHaveBeenCalledWith('/parent/dashboard');
+    });
+  });
+
+  it('shows error when no PIN is set (pinHash is empty)', async () => {
+    // Return empty pinHash and onboarding complete
+    mockGetSetting.mockImplementation((_db: unknown, key: string) => {
+      if (key === 'pinHash') return Promise.resolve({ key: 'pinHash', value: '' });
+      if (key === 'onboardingComplete') return Promise.resolve({ key: 'onboardingComplete', value: 'true' });
+      return Promise.resolve(undefined);
+    });
+
+    render(<ParentPage />);
+    await waitFor(() => expect(mockGetSetting).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('pin-key-1'));
+    fireEvent.click(screen.getByTestId('pin-key-2'));
+    fireEvent.click(screen.getByTestId('pin-key-3'));
+    fireEvent.click(screen.getByTestId('pin-key-4'));
+
+    await new Promise((r) => setTimeout(r, 200));
+    await waitFor(() => expect(screen.getByText(/No PIN set/)).toBeInTheDocument());
+  });
+
+  it('redirects to /onboarding when no PIN set and onboarding not complete', async () => {
+    mockGetSetting.mockImplementation((_db: unknown, key: string) => {
+      if (key === 'pinHash') return Promise.resolve({ key: 'pinHash', value: '' });
+      if (key === 'onboardingComplete') return Promise.resolve({ key: 'onboardingComplete', value: 'false' });
+      return Promise.resolve(undefined);
+    });
+
+    render(<ParentPage />);
+    await waitFor(() => expect(mockGetSetting).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('pin-key-1'));
+    fireEvent.click(screen.getByTestId('pin-key-2'));
+    fireEvent.click(screen.getByTestId('pin-key-3'));
+    fireEvent.click(screen.getByTestId('pin-key-4'));
+
+    await new Promise((r) => setTimeout(r, 200));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding'));
   });
 });

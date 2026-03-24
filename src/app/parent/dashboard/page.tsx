@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useDB } from '@/hooks/useDB';
-import { getAllWords, getAllProgress, getAllSessions } from '@/lib/db';
+import { useParentAuth } from '@/hooks/useParentAuth';
+import { getAllWords, getAllProgress, getAllSessions, getSetting } from '@/lib/db';
 import { getWeeklyStats } from '@/lib/progress';
 import { formatDate } from '@/lib/utils';
 import { ParentLayout } from '@/components/layouts/ParentLayout';
@@ -24,8 +25,10 @@ const CATEGORIES: { key: 'all' | Category; labelZh: string }[] = [
 ];
 
 export default function ParentDashboard() {
+  const { isAuthed } = useParentAuth();
   const db = useDB();
   const [isLoading, setIsLoading] = useState(true);
+  const [childName, setChildName] = useState('');
   const [words, setWords] = useState<VocabularyWord[]>([]);
   const [progressMap, setProgressMap] = useState<Map<string, WordProgress>>(new Map());
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -38,16 +41,18 @@ export default function ParentDashboard() {
     if (!db) return;
     (async () => {
       try {
-        const [allWords, allProgress, allSessions, stats] = await Promise.all([
+        const [allWords, allProgress, allSessions, stats, nameSetting] = await Promise.all([
           getAllWords(db as never),
           getAllProgress(db as never),
           getAllSessions(db as never),
           getWeeklyStats(db as never),
+          getSetting(db as never, 'childName'),
         ]);
         setWords(allWords);
         setProgressMap(new Map(allProgress.map((p) => [p.wordId, p])));
         setSessions(allSessions);
         setWeeklyStats(stats);
+        setChildName(String(nameSetting?.value ?? ''));
       } catch (err) {
         console.error('[Dashboard] load error:', err);
         setError('Failed to load data / 加载失败');
@@ -65,9 +70,11 @@ export default function ParentDashboard() {
     </Link>
   );
 
+  if (!isAuthed) return null;
+
   if (isLoading) {
     return (
-      <ParentLayout rightSlot={settingsLink}>
+      <ParentLayout title={childName ? `${childName}'s Progress / ${childName}的进度` : 'Parent Dashboard / 家长面板'} rightSlot={settingsLink}>
         <div data-testid="parent-dashboard" className="p-4 space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-16 bg-slate-200 rounded-xl animate-pulse" />
@@ -79,7 +86,7 @@ export default function ParentDashboard() {
 
   if (error) {
     return (
-      <ParentLayout rightSlot={settingsLink}>
+      <ParentLayout title={childName ? `${childName}'s Progress / ${childName}的进度` : 'Parent Dashboard / 家长面板'} rightSlot={settingsLink}>
         <div data-testid="parent-dashboard" className="flex items-center justify-center min-h-[400px]">
           <p className="text-red-500">{error}</p>
         </div>
@@ -88,7 +95,7 @@ export default function ParentDashboard() {
   }
 
   return (
-    <ParentLayout rightSlot={settingsLink}>
+    <ParentLayout title={childName ? `${childName}'s Progress / ${childName}的进度` : 'Parent Dashboard / 家长面板'} rightSlot={settingsLink}>
       <div data-testid="parent-dashboard" className="p-4 space-y-4">
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">

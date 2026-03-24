@@ -32,10 +32,24 @@ export default function ParentPage() {
   }, [db]);
 
   async function handlePinSubmit(pin: string) {
-    if (!pinHash) return;
+    if (!pinHash) {
+      // Check if onboarding was completed
+      if (db) {
+        try {
+          const oc = await getSetting(db as never, 'onboardingComplete');
+          if (String(oc?.value) !== 'true') {
+            router.replace('/onboarding');
+            return;
+          }
+        } catch {}
+      }
+      setErrorMsg('No PIN set. Please complete onboarding. / 请先完成引导设置。');
+      return;
+    }
     try {
       const ok = await verifyPIN(pin, pinHash);
       if (ok) {
+        sessionStorage.setItem('parentAuthed', '1');
         router.replace('/parent/dashboard');
       } else {
         const attempts = wrongAttempts + 1;

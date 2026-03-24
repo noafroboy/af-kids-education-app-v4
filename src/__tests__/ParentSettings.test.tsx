@@ -33,6 +33,10 @@ jest.mock('@/hooks/useDB', () => ({
   useDB: () => ({ _isMock: true }),
 }));
 
+jest.mock('@/hooks/useParentAuth', () => ({
+  useParentAuth: () => ({ isAuthed: true }),
+}));
+
 jest.mock('@/lib/db', () => ({
   getSetting: (...args: unknown[]) => mockGetSetting(...args),
   putSetting: (...args: unknown[]) => mockPutSetting(...args),

@@ -42,10 +42,17 @@ jest.mock('@/hooks/useDB', () => ({
   useDB: () => ({ _isMock: true }),
 }));
 
+jest.mock('@/hooks/useParentAuth', () => ({
+  useParentAuth: () => ({ isAuthed: true }),
+}));
+
+const mockGetSetting = jest.fn();
+
 jest.mock('@/lib/db', () => ({
   getAllWords: (...args: unknown[]) => mockGetAllWords(...args),
   getAllProgress: (...args: unknown[]) => mockGetAllProgress(...args),
   getAllSessions: (...args: unknown[]) => mockGetAllSessions(...args),
+  getSetting: (...args: unknown[]) => mockGetSetting(...args),
 }));
 
 jest.mock('@/lib/progress', () => ({
@@ -72,6 +79,7 @@ describe('ParentDashboard', () => {
     mockGetAllProgress.mockResolvedValue(MOCK_PROGRESS);
     mockGetAllSessions.mockResolvedValue(MOCK_SESSIONS);
     mockGetWeeklyStats.mockResolvedValue({ wordsThisWeek: 2, streak: 1, totalLearned: 1 });
+    mockGetSetting.mockResolvedValue(undefined);
   });
 
   it('renders loading skeleton initially', () => {
@@ -157,5 +165,17 @@ describe('ParentDashboard', () => {
   it('has settings link', async () => {
     render(<ParentDashboard />);
     await waitFor(() => expect(screen.getByRole('link', { name: /Settings/i })).toBeInTheDocument());
+  });
+
+  it('shows default title when no child name', async () => {
+    mockGetSetting.mockResolvedValue(undefined);
+    render(<ParentDashboard />);
+    await waitFor(() => expect(screen.getByText(/Parent Dashboard/)).toBeInTheDocument());
+  });
+
+  it('shows child name in title when name is set', async () => {
+    mockGetSetting.mockResolvedValue({ key: 'childName', value: 'Lily' });
+    render(<ParentDashboard />);
+    await waitFor(() => expect(screen.getByText(/Lily's Progress/)).toBeInTheDocument());
   });
 });
