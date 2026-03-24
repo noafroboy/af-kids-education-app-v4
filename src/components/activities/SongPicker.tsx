@@ -76,7 +76,7 @@ export default function SongPicker({ songs, playCountMap, onSelect, onBack }: So
 
       <button
         onClick={onBack}
-        className="mt-auto self-start px-4 py-2 text-slate-500 font-semibold text-sm rounded-xl"
+        className="mt-auto self-start px-4 min-h-[88px] flex items-center text-slate-500 font-semibold text-sm rounded-xl"
       >
         ← Back / 返回
       </button>

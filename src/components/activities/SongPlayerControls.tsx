@@ -27,13 +27,13 @@ export function SongPlayerControls({
         <button
           data-testid="retry-btn"
           onClick={onRetry}
-          className="px-6 py-3 bg-[#FF6B35] text-white rounded-2xl font-bold"
+          className="px-6 min-h-[88px] bg-[#FF6B35] text-white rounded-2xl font-bold"
         >
           Retry / 重试
         </button>
         <button
           onClick={onBack}
-          className="px-4 py-2 text-slate-500 font-semibold text-sm"
+          className="px-4 min-h-[88px] flex items-center text-slate-500 font-semibold text-sm"
         >
           ← Back / 返回
         </button>

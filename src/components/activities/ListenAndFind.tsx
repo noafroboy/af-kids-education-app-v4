@@ -144,7 +144,7 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
         </p>
         <button
           onClick={() => { if (current?.audioEnPath) audioManager.playWordEn(current.audioEnPath); }}
-          className="px-4 py-2 bg-[#4ECDC4] text-white rounded-xl text-sm font-bold"
+          className="px-4 min-h-[88px] bg-[#4ECDC4] text-white rounded-xl text-sm font-bold flex items-center"
         >
           Play Again / 再播放
         </button>
