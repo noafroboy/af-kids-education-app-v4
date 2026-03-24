@@ -1,0 +1,155 @@
+{
+  "task_id": "184",
+  "task_title": "Audio & Visual Assets — Regenerate broken Mandarin TTS files, generate song audio, resize vocabulary images, delete orphaned files",
+  "phase": "PLANNING",
+  "approach": "A — Conservative: follow task spec exactly, inline fallback for missing vocab words, minimal changes to existing scripts",
+
+  "files_to_modify": [
+    {
+      "path": "scripts/generate-audio-zh-openai-fallback.ts",
+      "reason": "Upgrade model tts-1 → tts-1-hd, add MP3 magic byte validation, add comment pointing to fix script"
+    }
+  ],
+
+  "files_to_create": [
+    {
+      "path": "scripts/generate-audio-zh-fix.ts",
+      "reason": "New script for targeted re-generation of 13 broken/missing Mandarin TTS files with validation"
+    },
+    {
+      "path": "scripts/generate-audio-songs.ts",
+      "reason": "New script to generate 3 song audio files (twinkle, old-macdonald, head-shoulders)"
+    }
+  ],
+
+  "files_to_delete": [
+    "public/audio/zh/bizi.mp3",
+    "public/audio/zh/fense.mp3",
+    "public/audio/zh/gou.mp3",
+    "public/audio/zh/hongse.mp3",
+    "public/audio/zh/huangse.mp3",
+    "public/audio/zh/jiao.mp3",
+    "public/audio/zh/xiangjiao.mp3"
+  ],
+
+  "binary_operations": [
+    {
+      "operation": "resize_images",
+      "command": "sips -z 512 512 public/images/vocabulary/*.png",
+      "reason": "Reduce 1024×1024 DALL-E images to 512×512 for faster mobile loading"
+    },
+    {
+      "operation": "run_zh_fix_script",
+      "command": "npx tsx scripts/generate-audio-zh-fix.ts",
+      "reason": "Regenerate 13 broken/corrupt Mandarin TTS files"
+    },
+    {
+      "operation": "run_songs_script",
+      "command": "npx tsx scripts/generate-audio-songs.ts",
+      "reason": "Generate 3 song audio files for Song Time activity"
+    }
+  ],
+
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create git branch af/184-task-audio-visual-assets-regenerate-brok/1"
+    },
+    {
+      "step": 2,
+      "description": "Delete 7 orphaned pinyin-named ZH audio files from public/audio/zh/"
+    },
+    {
+      "step": 3,
+      "description": "Resize all 20 vocabulary images from 1024×1024 to 512×512 using sips"
+    },
+    {
+      "step": 4,
+      "description": "Create scripts/generate-audio-zh-fix.ts — force-regenerates 13 broken Mandarin audio files with OpenAI tts-1-hd/nova at 0.85 speed, concurrency 3, MP3 header validation"
+    },
+    {
+      "step": 5,
+      "description": "Create scripts/generate-audio-songs.ts — generates 3 song MP3s (twinkle, old-macdonald, head-shoulders) using tts-1-hd/nova at 0.9 speed, skip if valid MP3 exists"
+    },
+    {
+      "step": 6,
+      "description": "Modify scripts/generate-audio-zh-openai-fallback.ts — upgrade model to tts-1-hd, add MP3 validation, add top comment"
+    },
+    {
+      "step": 7,
+      "description": "Run both new scripts (requires OPENAI_API_KEY from env or .env.local)"
+    },
+    {
+      "step": 8,
+      "description": "Verify outputs: sips check for images, file header check for MP3s"
+    },
+    {
+      "step": 9,
+      "description": "Commit and push"
+    }
+  ],
+
+  "expected_tests": [
+    {
+      "type": "internal_validation",
+      "description": "MP3 magic byte validation inside each TTS script — verifies ID3 tag (0x49,0x44,0x33) or sync bytes (0xFF,0xFB/0xFA/0xF3) after write"
+    },
+    {
+      "type": "shell_verification",
+      "description": "sips -g pixelHeight public/images/vocabulary/apple.png → pixelHeight: 512"
+    },
+    {
+      "type": "shell_verification",
+      "description": "ls public/audio/zh/ should NOT include bizi.mp3, fense.mp3, etc."
+    },
+    {
+      "type": "shell_verification",
+      "description": "ls public/audio/songs/ should show twinkle.mp3, old-macdonald.mp3, head-shoulders.mp3"
+    }
+  ],
+
+  "risk_areas": [
+    {
+      "risk": "lion, bear, grape not in FULL_VOCABULARY",
+      "impact": "Script would fail with 'Word not found' error for 3 of 13 targets",
+      "mitigation": "Include a hardcoded MANDARIN_FALLBACK map in generate-audio-zh-fix.ts for words missing from FULL_VOCABULARY (lion→狮子, bear→熊, grape→葡萄)"
+    },
+    {
+      "risk": "Vocabulary export name mismatch",
+      "impact": "Task spec says import VOCABULARY but file exports FULL_VOCABULARY",
+      "mitigation": "Use FULL_VOCABULARY in import statement"
+    },
+    {
+      "risk": "OPENAI_API_KEY not in environment",
+      "impact": "Scripts cannot generate audio files",
+      "mitigation": "Script reads from process.env.OPENAI_API_KEY first, then falls back to reading .env.local file; logs clear error if neither found"
+    },
+    {
+      "risk": "sips is macOS-only",
+      "impact": "Image resize command will fail on Linux CI/CD",
+      "mitigation": "sips is available on macOS (the dev machine); task spec explicitly calls for sips; acceptable for local asset generation"
+    },
+    {
+      "risk": "Songs directory public/audio/songs/ does not exist",
+      "impact": "File write will fail",
+      "mitigation": "Script creates directory with fs.mkdirSync({ recursive: true })"
+    },
+    {
+      "risk": "Existing ZH files may be valid for most words (only 13 are broken)",
+      "impact": "fix script force-overwrites ALL 13 even if some are valid",
+      "mitigation": "By design — task says 'Force overwrite (always regenerate, even if file exists, since existing files may contain corrupt JSON)'"
+    }
+  ],
+
+  "persistence_strategy": "Static binary files (MP3, PNG) written to public/ directory — served by Next.js as static assets, persisted on disk",
+
+  "error_handling_approach": "Each TTS call wrapped in try/catch. MP3 header validation throws descriptive error on failure. Scripts exit with non-zero code on fatal errors. Per-word failures in zh-fix logged but do not stop other words (catch per item in concurrency loop).",
+
+  "assumptions": [
+    "FULL_VOCABULARY is the correct import (not VOCABULARY as stated in task spec)",
+    "lion/bear/grape are missing from vocabulary — need hardcoded fallback with known Mandarin",
+    "sips is available on the developer's macOS machine",
+    "The 20 vocabulary images mentioned in the task refer to all PNG files in public/images/vocabulary/ (currently 100 files, task says 20 but the sips command covers all *.png)",
+    "No .env.local exists currently — script must handle gracefully"
+  ]
+}
