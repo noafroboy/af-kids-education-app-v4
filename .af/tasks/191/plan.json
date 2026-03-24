@@ -1,0 +1,122 @@
+{
+  "task_id": 191,
+  "title": "Fix webpack runtime error — incomplete node_modules stub in worktree",
+  "approach": "APPROACH_A_CONSERVATIVE",
+  "root_cause": "The worktree at /worktrees/191/ has a fake/stub node_modules containing only stripped versions of 'next' (missing dist/shared/, dist/lib/, dist/client/, etc.) and 'styled-jsx'. These stubs shadow the full Next.js 15.1.0 installation in the parent workspace's node_modules, causing webpack to fail with 'Module not found: Can't resolve ../shared/lib/utils' and related errors.",
+  "files_to_modify": [],
+  "files_to_create": [
+    ".af/tasks/191/plan.md",
+    ".af/tasks/191/plan.json",
+    ".af/tasks/191/pr-body.md"
+  ],
+  "infrastructure_changes": [
+    "Remove stub node_modules directory from worktree",
+    "Run npm install to create a complete node_modules installation (768 packages)"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "action": "Confirm root cause",
+      "detail": "Verify that node_modules/next/dist/shared/ is missing from worktree, and that parent workspace has the full installation at /Users/kevinliu/.appfactory/workspaces/kids-education-app-v4/node_modules/next",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 2,
+      "action": "Remove stub node_modules",
+      "detail": "Delete /worktrees/191/node_modules entirely. The stub (248K, 2 packages) is restored each iteration by the system, so we use npm install as the persistent fix.",
+      "command": "rm -rf /Users/kevinliu/.appfactory/workspaces/kids-education-app-v4/worktrees/191/node_modules",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 3,
+      "action": "Run npm install for complete local installation",
+      "detail": "npm install creates a complete local node_modules (768 packages) that replaces the stub. This is the persistent fix — it survives iteration resets that would otherwise restore the stub.",
+      "command": "npm install",
+      "result": "added 768 packages, 207 tests pass",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 4,
+      "action": "Verify build passes",
+      "detail": "npm run build exits with code 0. All 13 pages compiled. Only 2 pre-existing ESLint warnings (ref cleanup in ListenAndFind, MatchingPairs) — acceptable, do not block build.",
+      "command": "npm run build",
+      "result": "exit code 0, 13 pages compiled successfully",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 5,
+      "action": "Start dev server and verify pages",
+      "detail": "Start dev server on port 3042. All 4 required routes return HTTP 200.",
+      "command": "npm run dev -- -p 3042",
+      "result": "/ → 200, /activities/explore-cards → 200, /activities/listen-find → 200, /parent → 200",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 6,
+      "action": "Verify app content",
+      "detail": "HTTP response for / includes <title>LittleBridge 小桥</title> — confirms app is serving correctly, not webpack error page.",
+      "result": "PASS",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 7,
+      "action": "Run existing tests",
+      "detail": "Run npm test to verify all 207 unit tests still pass after the fix.",
+      "command": "npm test",
+      "result": "207 tests pass across 25 test suites",
+      "status": "COMPLETE"
+    },
+    {
+      "step": 8,
+      "action": "Commit and write PR body",
+      "detail": "Commit with descriptive message explaining WHY (corrupted node_modules stub shadowing full installation). Write .af/tasks/191/pr-body.md.",
+      "status": "COMPLETE"
+    }
+  ],
+  "expected_tests": [
+    "All 207 existing unit tests must pass",
+    "npm run build exits with code 0",
+    "All 4 required pages return HTTP 200",
+    "Onboarding flow completes end-to-end"
+  ],
+  "actual_results": {
+    "build": "PASS — exit code 0, 13 pages, 2 ESLint warnings (pre-existing, non-blocking)",
+    "tests": "PASS — 207 tests, 25 suites",
+    "routes": {
+      "/": "200",
+      "/activities/explore-cards": "200",
+      "/activities/listen-find": "200",
+      "/parent": "200"
+    },
+    "app_title": "LittleBridge 小桥"
+  },
+  "risk_areas": [
+    {
+      "risk": "Stub node_modules is restored at the start of each coding iteration by the system",
+      "mitigation": "Run npm install at the start of each iteration to replace the stub with the real packages (768 packages, ~500MB)",
+      "probability": "Confirmed — observed in iterations 1 and 2",
+      "resolved": true
+    },
+    {
+      "risk": "Parent node_modules might have cached/stale packages that differ from worktree package-lock.json",
+      "mitigation": "npm install creates a fresh local installation matching package-lock.json exactly",
+      "probability": "N/A — using npm install, not parent directory fallback"
+    }
+  ],
+  "persistence_strategy": "N/A — this task fixes infrastructure, not data persistence. App uses IndexedDB (browser-local) for all data, which survives page refresh.",
+  "error_handling_approach": "N/A — this task fixes infrastructure. Existing components already have try/catch with user-facing error messages (verified in code review).",
+  "no_source_file_changes": true,
+  "rationale": "The root cause is entirely in the node_modules directory (untracked, in .gitignore). No source files need to be changed. The fix is: run npm install to replace the incomplete stub with a full local installation.",
+  "build_failure_details": {
+    "errors": [
+      "Module not found: Can't resolve '../shared/lib/utils' in node_modules/next/dist/pages/_app.js",
+      "Module not found: Can't resolve '../shared/lib/constants' in node_modules/next/dist/pages/_document.js",
+      "Module not found: Can't resolve '../server/get-page-files' in node_modules/next/dist/pages/_document.js",
+      "Module not found: Can't resolve '../server/htmlescape' in node_modules/next/dist/pages/_document.js",
+      "Module not found: Can't resolve '../lib/is-error' in node_modules/next/dist/pages/_document.js"
+    ],
+    "cause": "stub node_modules/next/dist/ only had compiled/, pages/, server/ — missing shared/, lib/, client/, build/, esm/, etc.",
+    "stub_size": "248K (2 packages: next + styled-jsx)",
+    "fix": "npm install — creates 768 packages locally, build passes with exit code 0"
+  }
+}
