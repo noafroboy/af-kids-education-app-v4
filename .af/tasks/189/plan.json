@@ -1,0 +1,119 @@
+{
+  "task_id": 189,
+  "task_type": "integration_verification",
+  "approach": "conservative",
+  "summary": "Full audit of P1/P2 fixes. All static checks pass. One failing requirement: act() warnings in 2 test files must be eliminated.",
+
+  "verification_results": {
+    "flipcard_tap_targets_88px": "PASS",
+    "no_component_over_200_lines": "PASS",
+    "no_hardcoded_api_keys": "PASS",
+    "orphaned_zh_audio_deleted": "PASS",
+    "song_files_exist": "PASS",
+    "apple_png_512px": "PASS",
+    "parent_dashboard_uses_useParentAuth": "PASS",
+    "parent_settings_uses_useParentAuth": "PASS",
+    "playwright_no_desktop_chrome": "PASS",
+    "audio_error_reset_in_playWord": "PASS",
+    "audio_error_reset_in_playWordEn": "PASS",
+    "parent_page_sets_sessionStorage": "PASS",
+    "session_route_not_coming_soon": "PASS",
+    "typescript_no_errors": "PASS",
+    "all_tests_pass": "PASS",
+    "zero_act_warnings": "FAIL"
+  },
+
+  "issues_found": [
+    {
+      "id": "ACT_WARNINGS",
+      "severity": "P1",
+      "description": "React act() warnings in two test files. Tests pass but violate the zero-warnings requirement.",
+      "source_1": {
+        "file": "src/__tests__/PinPad.test.tsx",
+        "cause": "PinPad.tsx calls setDigits([]) inside a 100ms setTimeout. Tests await that timeout with raw `await new Promise(setTimeout)` which is not wrapped in act(), so React flags the state update.",
+        "lines_affected": [35, 50]
+      },
+      "source_2": {
+        "file": "src/__tests__/ParentPin.test.tsx",
+        "cause": "ParentPage useEffect calls getSetting (mocked Promise), then calls setPinHash on resolution. The async resolution happens outside any act() boundary in the tests.",
+        "lines_affected": [72, 86, 100, 114, 174, 197, 216]
+      }
+    }
+  ],
+
+  "files_to_modify": [
+    {
+      "path": "src/__tests__/PinPad.test.tsx",
+      "change": "Add `act` to testing-library imports. Wrap every `await new Promise((r) => setTimeout(r, 200))` in `await act(async () => { ... })`.",
+      "lines_to_change": [2, 35, 50]
+    },
+    {
+      "path": "src/__tests__/ParentPin.test.tsx",
+      "change": "Add `act` to testing-library imports. After each `render(<ParentPage />)` call, add `await act(async () => {})` to flush the useEffect's async getSetting → setPinHash chain. Wrap every `await new Promise(setTimeout)` in `await act(async () => { ... })`. Change the first synchronous test to async.",
+      "lines_to_change": [2, 56, 67, 83, 97, 111, 127, 146, 171, 188, 208]
+    }
+  ],
+
+  "files_to_create": [
+    ".af/tasks/189/plan.json",
+    ".af/tasks/189/plan.md",
+    ".af/tasks/189/integration-report.md"
+  ],
+
+  "steps": [
+    {
+      "step": 1,
+      "action": "Create git branch af/189-task-integration-verification-full-audit/1"
+    },
+    {
+      "step": 2,
+      "action": "Fix PinPad.test.tsx: import act, wrap setTimeout awaits in act()"
+    },
+    {
+      "step": 3,
+      "action": "Fix ParentPin.test.tsx: import act, add act flush after render, wrap setTimeout awaits in act()"
+    },
+    {
+      "step": 4,
+      "action": "Run npm test to confirm zero act() warnings and all 207 tests still pass"
+    },
+    {
+      "step": 5,
+      "action": "Run npx tsc --noEmit to confirm no TypeScript errors introduced"
+    },
+    {
+      "step": 6,
+      "action": "Write integration-report.md with PASS/FAIL for all 15 checks"
+    },
+    {
+      "step": 7,
+      "action": "Write pr-body.md and commit + push"
+    }
+  ],
+
+  "expected_tests": {
+    "suite_count": 25,
+    "test_count": 207,
+    "act_warnings": 0
+  },
+
+  "risk_areas": [
+    {
+      "risk": "Wrapping render in act() may change timing of assertions in ParentPin tests",
+      "mitigation": "Keep all existing waitFor() assertions; only add the act flush after render to allow async effects to complete before the test proceeds."
+    },
+    {
+      "risk": "act(async () => {}) may not flush all microtasks in all environments",
+      "mitigation": "Keep the existing `await waitFor(() => expect(mockGetSetting).toHaveBeenCalled())` calls as a fallback assertion guard."
+    }
+  ],
+
+  "persistence_strategy": "N/A — this task modifies test files only; no data persistence concerns",
+  "error_handling_approach": "N/A — test-only changes; production error handling already verified and passing",
+
+  "assumptions": [
+    "The only failing requirement is the act() warnings; all 13 static checks are already green.",
+    "Fixing tests (not source code) is the correct approach since the source code behavior is correct.",
+    "act(async () => {}) flushes microtasks in jsdom/Jest environment as documented by React Testing Library."
+  ]
+}
