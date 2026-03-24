@@ -43,6 +43,15 @@ class AudioManager {
   }
 
   playWord(enPath: string, zhPath: string): Promise<void> {
+    if (this.error) {
+      [enPath, zhPath].forEach((p) => {
+        if (this.cache.has(p)) {
+          this.cache.get(p)?.unload();
+          this.cache.delete(p);
+        }
+      });
+    }
+    this.error = false;
     this.isPlaying = true;
     return new Promise((resolve) => {
       const enHowl = this.getOrCreate(enPath);
@@ -69,6 +78,11 @@ class AudioManager {
   }
 
   playWordEn(enPath: string): void {
+    if (this.error && this.cache.has(enPath)) {
+      this.cache.get(enPath)?.unload();
+      this.cache.delete(enPath);
+    }
+    this.error = false;
     try {
       const howl = this.getOrCreate(enPath);
       howl.play();

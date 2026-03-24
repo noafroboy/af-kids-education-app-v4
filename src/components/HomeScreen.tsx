@@ -52,11 +52,11 @@ export function HomeScreen() {
 
   useEffect(() => {
     if (!db) return;
-    (async () => {
+
+    const fetchData = async () => {
       try {
         const nameSetting = await getSetting(db as never, 'childName');
         if (nameSetting?.value) setChildName(String(nameSetting.value));
-
         const sessions = await getAllSessions(db as never);
         const today = new Date().toDateString();
         const todayCount = sessions
@@ -66,7 +66,18 @@ export function HomeScreen() {
       } catch (err) {
         console.warn('[HomeScreen] Failed to load data:', err);
       }
-    })();
+    };
+
+    fetchData();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [db]);
 
   return (

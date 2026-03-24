@@ -1,0 +1,154 @@
+{
+  "task_id": "187",
+  "title": "P2 Infrastructure Fixes — AudioManager error state reset, HomeScreen daily word count refresh, Playwright mobile viewport",
+  "approach": "B",
+  "approach_rationale": "Approach B (Ideal) is chosen over A (Conservative) because Iron Law 4 requires every feature/behavioral change to have at least one test. The Howler mock and Jest infrastructure are already in place, making test authoring low-effort. The three behavioral changes (error reset, visibility listener, viewport fix) each warrant targeted tests.",
+
+  "files_to_modify": [
+    {
+      "path": "src/lib/audio.ts",
+      "change": "Reset this.error flag and evict stale cache entries at the start of playWordEn and playWord to allow successful retries after a previous load failure.",
+      "line_count_before": 107,
+      "line_count_after": 121
+    },
+    {
+      "path": "src/components/HomeScreen.tsx",
+      "change": "Extract the data-fetch IIFE into a named fetchData function; add a visibilitychange event listener that calls fetchData when document.visibilityState becomes 'visible'; remove the listener in the cleanup return.",
+      "line_count_before": 145,
+      "line_count_after": 155
+    },
+    {
+      "path": "playwright.config.ts",
+      "change": "Remove '...devices[\"Desktop Chrome\"]' spread from the projects[0].use object so the globally configured 375×667 viewport is not overridden.",
+      "line_count_before": 29,
+      "line_count_after": 29
+    }
+  ],
+
+  "files_to_create": [
+    {
+      "path": "src/__tests__/audio.test.ts",
+      "purpose": "Unit tests verifying AudioManager error-reset behaviour: (1) playWordEn resets error flag and evicts stale cache before retrying, (2) playWord resets error flag and evicts stale cache before retrying."
+    },
+    {
+      "path": "src/__tests__/HomeScreen.test.tsx",
+      "purpose": "Unit tests verifying (1) visibilitychange triggers data re-fetch when state becomes 'visible', (2) the listener is cleaned up on unmount (removeEventListener called)."
+    },
+    {
+      "path": "tests/e2e/viewport.spec.ts",
+      "purpose": "Playwright E2E test that asserts page.viewportSize() returns { width: 375, height: 667 }, confirming the Desktop Chrome override is gone."
+    }
+  ],
+
+  "steps": [
+    {
+      "step": 1,
+      "action": "Create branch af/187-task-p2-infrastructure-fixes-audiomanage/1"
+    },
+    {
+      "step": 2,
+      "action": "Modify src/lib/audio.ts — add error reset + cache eviction to playWordEn and playWord"
+    },
+    {
+      "step": 3,
+      "action": "Modify src/components/HomeScreen.tsx — extract fetchData, add visibilitychange listener + cleanup"
+    },
+    {
+      "step": 4,
+      "action": "Modify playwright.config.ts — replace '{ ...devices[\"Desktop Chrome\"] }' with '{}'"
+    },
+    {
+      "step": 5,
+      "action": "Write src/__tests__/audio.test.ts with unit tests for error-reset behavior"
+    },
+    {
+      "step": 6,
+      "action": "Write src/__tests__/HomeScreen.test.tsx with unit tests for visibility change"
+    },
+    {
+      "step": 7,
+      "action": "Write tests/e2e/viewport.spec.ts with viewport assertion test"
+    },
+    {
+      "step": 8,
+      "action": "Run npm test (Jest) to verify all unit tests pass"
+    },
+    {
+      "step": 9,
+      "action": "Commit, push, write pr-body.md"
+    }
+  ],
+
+  "expected_tests": [
+    {
+      "file": "src/__tests__/audio.test.ts",
+      "cases": [
+        "playWordEn: resets error flag before new attempt",
+        "playWordEn: evicts stale cache entry when error was set",
+        "playWordEn: does not evict cache entry when no prior error",
+        "playWord: resets error flag before new attempt",
+        "playWord: evicts stale cache entries for both paths when error was set"
+      ]
+    },
+    {
+      "file": "src/__tests__/HomeScreen.test.tsx",
+      "cases": [
+        "fetches data on initial mount",
+        "re-fetches data when visibilityState changes to visible",
+        "does not re-fetch when visibilityState changes to hidden",
+        "removes visibilitychange listener on unmount"
+      ]
+    },
+    {
+      "file": "tests/e2e/viewport.spec.ts",
+      "cases": [
+        "page viewport is 375×667"
+      ]
+    }
+  ],
+
+  "risk_areas": [
+    {
+      "area": "AudioManager singleton state",
+      "risk": "The audioManager export is a module-level singleton; Jest module isolation may share state between tests. Mitigation: reset the singleton's internal state via the public API between tests, or use jest.resetModules() / jest.isolateModules()."
+    },
+    {
+      "area": "HomeScreen unit test — db mock",
+      "risk": "HomeScreen depends on useDB (returns IndexedDB instance) and db module functions (getSetting, getAllSessions). These must be mocked carefully to avoid real IndexedDB calls.",
+      "mitigation": "Mock useDB to return a truthy db object; mock getSetting and getAllSessions with jest.fn() returning resolved promises."
+    },
+    {
+      "area": "visibilitychange listener timing",
+      "risk": "The listener fires asynchronously; tests must use waitFor or act() to flush the async fetchData call.",
+      "mitigation": "Wrap fireEvent dispatch + assertion in act() + waitFor."
+    },
+    {
+      "area": "HomeScreen line count",
+      "risk": "HomeScreen.tsx grows from 145 to ~155 lines. The sanity.spec.ts test enforces ≤200 lines for files in src/components/. 155 < 200, so this passes.",
+      "mitigation": "None needed; 155 is comfortably under the 200-line limit."
+    },
+    {
+      "area": "audio.ts line count",
+      "risk": "audio.ts grows from 107 to ~121 lines. Requirement says it must remain under 200 lines.",
+      "mitigation": "None needed; 121 is well under 200."
+    },
+    {
+      "area": "Playwright viewport E2E test",
+      "risk": "The viewport test relies on the web server being up. It will naturally run with the fixed config, so the test itself validates the fix.",
+      "mitigation": "Use the existing webServer config which re-uses an existing dev server."
+    }
+  ],
+
+  "persistence_strategy": "N/A — these changes are runtime behavior fixes. Data persistence is handled by the existing IndexedDB layer (getAllSessions, getSetting). The visibilitychange listener reads fresh data from IndexedDB each time.",
+
+  "error_handling_approach": "playWordEn already has a try/catch; playWord has loaderror callbacks. The HomeScreen fetchData is already wrapped in try/catch with console.warn. No new error paths are introduced.",
+
+  "assumptions": [
+    "The task says 'prefer the empty-use approach' for playwright.config.ts. We use '{}' (not Pixel 5 device).",
+    "The visibilitychange refresh only needs to update todayWords and childName — no other HomeScreen data is missing.",
+    "The AudioManager error flag must be reset before every new play attempt (not just once), so both playWordEn and playWord get the reset.",
+    "The error reset in playWord should evict both enPath and zhPath cache entries (as described in the task).",
+    "Unit tests for HomeScreen only need to cover the visibility change behavior; full rendering tests for all other aspects are out of scope.",
+    "The E2E viewport test can live in a new file (tests/e2e/viewport.spec.ts) rather than expanding sanity.spec.ts."
+  ]
+}
