@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useProgress } from '@/hooks/useProgress';
 import { useAudio } from '@/hooks/useAudio';
 import { shuffleArray } from '@/lib/utils';
+import { audioManager } from '@/lib/audio';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ChoiceCard } from './ChoiceCard';
 import type { VocabularyWord } from '@/types';
@@ -43,6 +44,7 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
   wrongAttemptsRef.current = wrongAttempts;
   const correctFirstRef = useRef(correctFirst);
   correctFirstRef.current = correctFirst;
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const setupRound = useCallback(
     (wordIndex: number) => {
@@ -54,8 +56,7 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
       setCardStates(states);
       setWrongAttempts(0);
       setRevealText(null);
-      const audio = new Audio(target.audioEnPath);
-      audio.play().catch(() => {});
+      audioManager.playWordEn(target.audioEnPath);
     },
     [wordList, choiceCount]
   );
@@ -63,6 +64,10 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
   useEffect(() => {
     if (wordList.length > 0) setupRound(0);
   }, [wordList, setupRound]);
+
+  useEffect(() => {
+    return () => { timeoutsRef.current.forEach(clearTimeout); };
+  }, []);
 
   function advance(nextIndex: number) {
     if (nextIndex >= wordList.length) {
@@ -95,18 +100,21 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
       playEffect('correct');
       updateWord(word.id, true).catch(() => {});
       setIsAdvancing(true);
-      setTimeout(() => advance(index + 1), 1200);
+      const tid1 = setTimeout(() => advance(index + 1), 1200);
+      timeoutsRef.current.push(tid1);
     } else {
       setCardStates((prev) => new Map(prev).set(word.id, 'wrong'));
       playEffect('incorrect');
       const next = wrongAttemptsRef.current + 1;
       setWrongAttempts(next);
-      setTimeout(() => setCardStates((prev) => new Map(prev).set(word.id, 'idle')), 400);
+      const tid2 = setTimeout(() => setCardStates((prev) => new Map(prev).set(word.id, 'idle')), 400);
+      timeoutsRef.current.push(tid2);
       if (next >= 2) {
         setCardStates((prev) => new Map(prev).set(target.id, 'reveal'));
         setIsRevealing(true);
         setRevealText(`这是 ${target.mandarinWord}! / It's ${target.englishWord}!`);
-        setTimeout(() => advance(index + 1), 2000);
+        const tid3 = setTimeout(() => advance(index + 1), 2000);
+        timeoutsRef.current.push(tid3);
       }
     }
   }
@@ -131,7 +139,7 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
           Find: {current?.englishWord}
         </p>
         <button
-          onClick={() => { const a = new Audio(current?.audioEnPath); a.play().catch(() => {}); }}
+          onClick={() => { if (current?.audioEnPath) audioManager.playWordEn(current.audioEnPath); }}
           className="px-4 py-2 bg-[#4ECDC4] text-white rounded-xl text-sm font-bold"
         >
           Play Again / 再播放

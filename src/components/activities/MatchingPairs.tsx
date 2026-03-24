@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useProgress } from '@/hooks/useProgress';
 import { useAudio } from '@/hooks/useAudio';
 import { shuffleArray } from '@/lib/utils';
@@ -39,6 +39,7 @@ export function MatchingPairs({ wordList, age, onComplete }: MatchingPairsProps)
 
   const wrongFlipsRef = useRef(wrongFlips);
   wrongFlipsRef.current = wrongFlips;
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const checkComplete = useCallback(
     (updatedCards: PairCard[]) => {
@@ -74,7 +75,7 @@ export function MatchingPairs({ wordList, age, onComplete }: MatchingPairsProps)
 
     if (newFlipped.length === 2) {
       isFlipping.current = true;
-      setTimeout(() => {
+      const tid1 = setTimeout(() => {
         setCards((prev) => {
           const [aId, bId] = newFlipped;
           const a = prev.find((c) => c.id === aId)!;
@@ -92,7 +93,7 @@ export function MatchingPairs({ wordList, age, onComplete }: MatchingPairsProps)
           } else {
             playEffect('incorrect');
             setWrongFlips((w) => w + 1);
-            setTimeout(() => {
+            const tid2 = setTimeout(() => {
               setCards((prev2) =>
                 prev2.map((c) =>
                   c.id === aId || c.id === bId ? { ...c, isFlipped: false } : c
@@ -101,12 +102,18 @@ export function MatchingPairs({ wordList, age, onComplete }: MatchingPairsProps)
               setFlippedIds([]);
               isFlipping.current = false;
             }, 800);
+            timeoutsRef.current.push(tid2);
             return prev;
           }
         });
       }, 400);
+      timeoutsRef.current.push(tid1);
     }
   }
+
+  useEffect(() => {
+    return () => { timeoutsRef.current.forEach(clearTimeout); };
+  }, []);
 
   function handleNewGame() {
     startTimeRef.current = Date.now();

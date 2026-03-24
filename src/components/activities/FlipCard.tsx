@@ -27,7 +27,7 @@ export function FlipCard({ card, onFlip }: FlipCardProps) {
       data-testid={testId}
       onClick={() => onFlip(card.id)}
       className="cursor-pointer"
-      style={{ perspective: '1000px', width: '100%', aspectRatio: '1 / 1', minWidth: 80, minHeight: 80 }}
+      style={{ perspective: '1000px', width: '100%', aspectRatio: '1 / 1', minWidth: 88, minHeight: 88 }}
     >
       <div
         style={{
