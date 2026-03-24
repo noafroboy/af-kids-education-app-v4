@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ParentSettings from '@/app/parent/settings/page';
 
 jest.mock('framer-motion', () => ({
@@ -59,8 +59,9 @@ describe('ParentSettings', () => {
     });
   });
 
-  it('renders data-testid parent-settings', () => {
+  it('renders data-testid parent-settings', async () => {
     render(<ParentSettings />);
+    await act(async () => {});
     expect(screen.getByTestId('parent-settings')).toBeInTheDocument();
   });
 
@@ -98,8 +99,9 @@ describe('ParentSettings', () => {
     await waitFor(() => expect(screen.getByText(/Saved/)).toBeInTheDocument());
   });
 
-  it('renders ChangePinSection', () => {
+  it('renders ChangePinSection', async () => {
     render(<ParentSettings />);
+    await act(async () => {});
     expect(screen.getByTestId('change-pin-section')).toBeInTheDocument();
   });
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ParentPage from '@/app/parent/page';
 
 jest.mock('framer-motion', () => ({
@@ -45,6 +45,10 @@ jest.mock('@/lib/crypto', () => ({
   verifyPIN: (...args: unknown[]) => mockVerifyPIN(...args),
 }));
 
+async function flushTimers() {
+  await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+}
+
 describe('ParentPage (PIN entry)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -53,13 +57,15 @@ describe('ParentPage (PIN entry)', () => {
     mockVerifyPIN.mockResolvedValue(false);
   });
 
-  it('renders data-testid parent-pin-page', () => {
+  it('renders data-testid parent-pin-page', async () => {
     render(<ParentPage />);
+    await act(async () => {});
     expect(screen.getByTestId('parent-pin-page')).toBeInTheDocument();
   });
 
-  it('shows bilingual header text', () => {
+  it('shows bilingual header text', async () => {
     render(<ParentPage />);
+    await act(async () => {});
     expect(screen.getByText(/Parent PIN/)).toBeInTheDocument();
     expect(screen.getByText(/家长密码/)).toBeInTheDocument();
   });
@@ -76,7 +82,7 @@ describe('ParentPage (PIN entry)', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await flushTimers();
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/parent/dashboard'));
   });
 
@@ -90,7 +96,7 @@ describe('ParentPage (PIN entry)', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await flushTimers();
     await waitFor(() => expect(screen.getByText(/Wrong PIN/)).toBeInTheDocument());
   });
 
@@ -104,7 +110,7 @@ describe('ParentPage (PIN entry)', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await flushTimers();
     await waitFor(() => expect(screen.getByText(/1\/3/)).toBeInTheDocument());
   });
 
@@ -118,7 +124,7 @@ describe('ParentPage (PIN entry)', () => {
       fireEvent.click(screen.getByTestId('pin-key-2'));
       fireEvent.click(screen.getByTestId('pin-key-3'));
       fireEvent.click(screen.getByTestId('pin-key-4'));
-      await new Promise((r) => setTimeout(r, 200));
+      await flushTimers();
     }
 
     await waitFor(() => expect(screen.getByText(/Forgot PIN/)).toBeInTheDocument());
@@ -134,7 +140,7 @@ describe('ParentPage (PIN entry)', () => {
       fireEvent.click(screen.getByTestId('pin-key-2'));
       fireEvent.click(screen.getByTestId('pin-key-3'));
       fireEvent.click(screen.getByTestId('pin-key-4'));
-      await new Promise((r) => setTimeout(r, 200));
+      await flushTimers();
     }
 
     await waitFor(() => screen.getByText(/Forgot PIN/));
@@ -153,7 +159,7 @@ describe('ParentPage (PIN entry)', () => {
       fireEvent.click(screen.getByTestId('pin-key-2'));
       fireEvent.click(screen.getByTestId('pin-key-3'));
       fireEvent.click(screen.getByTestId('pin-key-4'));
-      await new Promise((r) => setTimeout(r, 200));
+      await flushTimers();
     }
 
     await waitFor(() => screen.getByText(/Forgot PIN/));
@@ -178,7 +184,7 @@ describe('ParentPage (PIN entry)', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await flushTimers();
     await waitFor(() => {
       expect(sessionStorage.getItem('parentAuthed')).toBe('1');
       expect(mockReplace).toHaveBeenCalledWith('/parent/dashboard');
@@ -201,7 +207,7 @@ describe('ParentPage (PIN entry)', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await flushTimers();
     await waitFor(() => expect(screen.getByText(/No PIN set/)).toBeInTheDocument());
   });
 
@@ -220,7 +226,7 @@ describe('ParentPage (PIN entry)', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await flushTimers();
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding'));
   });
 });

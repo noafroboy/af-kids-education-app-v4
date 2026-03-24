@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PinPad } from '@/components/ui/PinPad';
 
 // Mock framer-motion
@@ -32,7 +32,7 @@ describe('PinPad', () => {
     fireEvent.click(screen.getByTestId('pin-key-3'));
     fireEvent.click(screen.getByTestId('pin-key-4'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
     expect(onSubmit).toHaveBeenCalledWith('1234');
   });
 
@@ -47,7 +47,7 @@ describe('PinPad', () => {
     fireEvent.click(screen.getByTestId('pin-key-4'));
     fireEvent.click(screen.getByTestId('pin-key-5'));
 
-    await new Promise((r) => setTimeout(r, 200));
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
     expect(onSubmit).toHaveBeenCalledWith('1345');
   });
 });
