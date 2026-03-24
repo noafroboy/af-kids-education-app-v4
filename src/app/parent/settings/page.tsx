@@ -6,11 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ParentLayout } from '@/components/layouts/ParentLayout';
 import { ChangePinSection } from '@/components/parent/ChangePinSection';
 import { useDB } from '@/hooks/useDB';
+import { useParentAuth } from '@/hooks/useParentAuth';
 import { getSetting, putSetting, clearProgress, clearSessions } from '@/lib/db';
 
 const AGES = [2, 3, 4, 5];
 
 export default function ParentSettings() {
+  const { isAuthed } = useParentAuth();
   const db = useDB();
   const router = useRouter();
   const [childName, setChildName] = useState('');
@@ -59,6 +61,8 @@ export default function ParentSettings() {
       setIsResetting(false);
     }
   }
+
+  if (!isAuthed) return null;
 
   return (
     <ParentLayout title="Settings / 设置">

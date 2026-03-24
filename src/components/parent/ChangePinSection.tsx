@@ -40,6 +40,7 @@ export function ChangePinSection() {
       setStep('done');
     } catch (err) {
       console.error('[ChangePinSection] save error:', err);
+      setErrorMsg('Failed to save new PIN / 保存失败');
     }
   }
 
