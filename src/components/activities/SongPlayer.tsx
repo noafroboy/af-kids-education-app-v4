@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Howl } from 'howler';
-import Image from 'next/image';
 import { audioManager } from '@/lib/audio';
 import SongLyricsPanel from './SongLyricsPanel';
+import { SongCoverArt } from './SongCoverArt';
+import { SongPlayerControls } from './SongPlayerControls';
 import type { Song, VocabularyWord } from '@/types';
 
 interface SongPlayerProps {
@@ -21,7 +22,7 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
   const [activatedWordId, setActivatedWordId] = useState<string | null>(null);
   const [songEnded, setSongEnded] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const howlRef = useRef<Howl | null>(null);
   const rafRef = useRef<number>(0);
@@ -54,6 +55,8 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
   }, [cancelRaf, onSongEnd]);
 
   useEffect(() => {
+    setAudioReady(false);
+    setAudioError(false);
     const howl = new Howl({ src: [song.audioPath], html5: true });
     howlRef.current = howl;
     howl.on('load', () => setAudioReady(true));
@@ -63,13 +66,17 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
       cancelRaf();
       howl.unload();
     };
-  }, [song.audioPath, handleSongEnd, cancelRaf]);
+  }, [song.audioPath, handleSongEnd, cancelRaf, retryCount]);
 
   useEffect(() => {
     if (currentLineRef.current) {
       currentLineRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     }
   }, [currentLineIndex]);
+
+  const handleRetry = useCallback(() => {
+    setRetryCount((c) => c + 1);
+  }, []);
 
   function handlePlayPause() {
     if (!howlRef.current || audioError) return;
@@ -111,25 +118,6 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
     startRaf();
   }
 
-  if (audioError) {
-    return (
-      <div data-testid="song-player" className="min-h-screen bg-[#FFF9F0] flex flex-col items-center justify-center gap-4 p-8">
-        <span className="text-5xl">🎵</span>
-        <p className="text-xl text-slate-500 text-center">Song unavailable / 歌曲暂时无法播放</p>
-        <button
-          data-testid="retry-btn"
-          onClick={() => { setAudioError(false); setAudioReady(false); }}
-          className="px-6 py-3 bg-[#FF6B35] text-white rounded-2xl font-bold"
-        >
-          Retry / 重试
-        </button>
-        <button onClick={onBack} className="px-4 py-2 text-slate-500 font-semibold text-sm">
-          ← Back / 返回
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div
       data-testid="song-player"
@@ -142,44 +130,36 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
         <p className="text-sm text-slate-500">{song.titleZh}</p>
       </div>
 
-      <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-purple-50 flex items-center justify-center">
-        {imgError ? (
-          <span className="text-4xl">🎵</span>
-        ) : (
-          <Image src={song.coverImagePath} alt={song.title} fill className="object-cover"
-            onError={() => setImgError(true)} />
-        )}
-      </div>
+      <SongCoverArt src={song.coverImagePath} alt={song.title} />
 
-      {!audioReady && !audioError && (
-        <p className="text-sm text-slate-400 animate-pulse">Loading audio... / 加载中...</p>
-      )}
-
-      <button
-        data-testid="song-play-btn"
-        onClick={handlePlayPause}
-        disabled={!audioReady && !audioError}
-        className="w-[88px] h-[88px] bg-[#FF6B35] text-white rounded-full text-4xl shadow-lg flex items-center justify-center disabled:opacity-50 transition-transform active:scale-95"
-        aria-label={playing ? 'Pause' : 'Play'}
-      >
-        {playing ? '⏸' : '▶'}
-      </button>
-
-      <SongLyricsPanel
-        lyrics={song.lyrics}
-        vocabulary={vocabulary}
-        currentLineIndex={currentLineIndex}
-        activatedWordId={activatedWordId}
-        lineRef={currentLineRef}
-        onWordTap={handleWordTap}
-        songEnded={songEnded}
-        onListenAgain={handleListenAgain}
+      <SongPlayerControls
+        isReady={audioReady}
+        isPlaying={playing}
+        hasError={audioError}
+        onPlayPause={handlePlayPause}
+        onRetry={handleRetry}
         onBack={onBack}
       />
 
-      <button onClick={onBack} className="self-start px-4 py-2 text-slate-500 font-semibold text-sm rounded-xl">
-        ← Back / 返回
-      </button>
+      {!audioError && (
+        <SongLyricsPanel
+          lyrics={song.lyrics}
+          vocabulary={vocabulary}
+          currentLineIndex={currentLineIndex}
+          activatedWordId={activatedWordId}
+          lineRef={currentLineRef}
+          onWordTap={handleWordTap}
+          songEnded={songEnded}
+          onListenAgain={handleListenAgain}
+          onBack={onBack}
+        />
+      )}
+
+      {!audioError && (
+        <button onClick={onBack} className="self-start px-4 py-2 text-slate-500 font-semibold text-sm rounded-xl">
+          ← Back / 返回
+        </button>
+      )}
     </div>
   );
 }

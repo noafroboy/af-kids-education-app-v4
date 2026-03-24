@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import SongTime from '@/components/activities/SongTime';
+import { GreetingStep } from '@/components/session/GreetingStep';
 import type { Song, VocabularyWord } from '@/types';
 
 // ── Howler mock with instance tracking ────────────────────────────────────────
@@ -80,14 +81,30 @@ jest.mock('next/navigation', () => ({
 }));
 
 // ── audioManager mock ──────────────────────────────────────────────────────────
+const mockPlayWordEn = jest.fn();
 jest.mock('@/lib/audio', () => ({
   audioManager: {
     playWord: jest.fn().mockResolvedValue(undefined),
-    playWordEn: jest.fn(),
+    get playWordEn() { return mockPlayWordEn; },
     playEffect: jest.fn(),
     hasError: false,
     unlockAudioContext: jest.fn(),
   },
+}));
+
+// ── framer-motion mock (for GreetingStep tests) ────────────────────────────────
+jest.mock('framer-motion', () => ({
+  motion: {
+    h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement> & { initial?: unknown; animate?: unknown; transition?: unknown }) =>
+      <h2 {...(props as React.HTMLAttributes<HTMLHeadingElement>)}>{children}</h2>,
+    button: ({ children, whileTap: _wt, initial: _i, animate: _a, transition: _t, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { whileTap?: unknown; initial?: unknown; animate?: unknown; transition?: unknown }) =>
+      <button {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}>{children}</button>,
+    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { initial?: unknown; animate?: unknown; transition?: unknown }) =>
+      <div {...(props as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>,
+    rect: ({ ...props }: React.SVGProps<SVGRectElement> & { animate?: unknown; transition?: unknown }) =>
+      <rect {...(props as React.SVGProps<SVGRectElement>)} />,
+  },
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // ── Test fixtures ──────────────────────────────────────────────────────────────
@@ -225,6 +242,43 @@ describe('SongTime', () => {
     });
   });
 
+  it('retry creates a new Howl instance (Howl constructor called twice)', async () => {
+    const { Howl: MockHowl } = jest.requireMock<{ Howl: jest.Mock }>('howler');
+    renderSongTime();
+    fireEvent.click(screen.getAllByTestId('song-tile')[0]);
+    await waitFor(() => expect(screen.getByTestId('song-player')).toBeInTheDocument());
+
+    // First Howl created on mount
+    expect(MockHowl).toHaveBeenCalledTimes(1);
+
+    act(() => { lastHowlInstance?.emit('loaderror'); });
+    await waitFor(() => expect(screen.getByTestId('retry-btn')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('retry-btn'));
+
+    // Second Howl created after retry
+    await waitFor(() => {
+      expect(MockHowl).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('play button is briefly disabled after retry (isReady=false while new Howl loads)', async () => {
+    renderSongTime();
+    fireEvent.click(screen.getAllByTestId('song-tile')[0]);
+    await waitFor(() => expect(screen.getByTestId('song-player')).toBeInTheDocument());
+
+    act(() => { lastHowlInstance?.emit('loaderror'); });
+    await waitFor(() => expect(screen.getByTestId('retry-btn')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('retry-btn'));
+
+    // After retry, error cleared and new load starts — play button should be disabled
+    await waitFor(() => {
+      const playBtn = screen.getByTestId('song-play-btn');
+      expect(playBtn).toBeDisabled();
+    });
+  });
+
   it('back button in player returns to song-picker', async () => {
     renderSongTime();
     fireEvent.click(screen.getAllByTestId('song-tile')[0]);
@@ -307,5 +361,28 @@ describe('SongTime', () => {
     expect(screen.getByText('Twinkle Twinkle Little Star')).toBeInTheDocument();
     expect(screen.getByText('Old MacDonald Had a Farm')).toBeInTheDocument();
     expect(screen.getByText('Head Shoulders Knees and Toes')).toBeInTheDocument();
+  });
+});
+
+// ── GreetingStep audio tests ────────────────────────────────────────────────────
+describe('GreetingStep', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it('calls audioManager.playWordEn with hello.mp3 on mount', () => {
+    render(<GreetingStep onProceed={jest.fn()} />);
+    expect(mockPlayWordEn).toHaveBeenCalledWith('/audio/en/hello.mp3');
+  });
+
+  it('calls audioManager.playWordEn exactly once on mount', () => {
+    render(<GreetingStep onProceed={jest.fn()} />);
+    expect(mockPlayWordEn).toHaveBeenCalledTimes(1);
   });
 });
