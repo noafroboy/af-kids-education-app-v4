@@ -21,11 +21,15 @@ export function MascotIdle({ size = 'md', showBubble = false, onClick, className
   const px = SIZE_MAP[size];
 
   useEffect(() => {
+    let blinkTimer: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
       setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 200);
+      blinkTimer = setTimeout(() => setIsBlinking(false), 200);
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (blinkTimer) clearTimeout(blinkTimer);
+    };
   }, []);
 
   return (

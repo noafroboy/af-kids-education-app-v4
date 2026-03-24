@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ParentLayout } from '@/components/layouts/ParentLayout';
@@ -15,9 +15,16 @@ export default function ParentPage() {
   const [pinHash, setPinHash] = useState('');
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [pinError, setPinError] = useState(false);
+  const pinErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (pinErrorTimerRef.current) clearTimeout(pinErrorTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!db) return;
@@ -56,7 +63,8 @@ export default function ParentPage() {
         setWrongAttempts(attempts);
         setPinError(true);
         setErrorMsg(`密码错误 / Wrong PIN (${attempts}/3)`);
-        setTimeout(() => setPinError(false), 500);
+        if (pinErrorTimerRef.current) clearTimeout(pinErrorTimerRef.current);
+        pinErrorTimerRef.current = setTimeout(() => setPinError(false), 500);
       }
     } catch (err) {
       console.error('[ParentPage] PIN verify error:', err);
@@ -121,14 +129,14 @@ export default function ParentPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowForgotModal(false)}
-                    className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-600 font-semibold"
+                    className="flex-1 min-h-[88px] rounded-xl border border-slate-300 text-slate-600 font-semibold"
                   >
                     取消 / Cancel
                   </button>
                   <button
                     onClick={handleResetConfirm}
                     disabled={isResetting}
-                    className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold disabled:opacity-50"
+                    className="flex-1 min-h-[88px] rounded-xl bg-red-500 text-white font-semibold disabled:opacity-50"
                   >
                     确认重置 / Confirm Reset
                   </button>

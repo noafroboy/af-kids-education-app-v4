@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ParentLayout } from '@/components/layouts/ParentLayout';
@@ -20,6 +20,13 @@ export default function ParentSettings() {
   const [saved, setSaved] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!db) return;
@@ -43,7 +50,8 @@ export default function ParentSettings() {
       await putSetting(db as never, 'childName', childName);
       if (childAge !== null) await putSetting(db as never, 'childAge', childAge);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error('[ParentSettings] save error:', err);
     }
@@ -142,14 +150,14 @@ export default function ParentSettings() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-semibold"
+                  className="flex-1 min-h-[88px] rounded-xl bg-slate-100 text-slate-600 font-semibold"
                 >
                   取消 / Cancel
                 </button>
                 <button
                   onClick={handleResetConfirm}
                   disabled={isResetting}
-                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold disabled:opacity-50"
+                  className="flex-1 min-h-[88px] rounded-xl bg-red-500 text-white font-semibold disabled:opacity-50"
                 >
                   确认 / Confirm
                 </button>

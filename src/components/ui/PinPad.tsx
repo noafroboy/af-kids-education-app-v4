@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 interface PinPadProps {
@@ -18,6 +18,13 @@ const ROWS = [
 
 export function PinPad({ onSubmit, onClear, error }: PinPadProps) {
   const [digits, setDigits] = useState<string[]>([]);
+  const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, []);
 
   function handleKey(key: string) {
     if (key === '⌫') {
@@ -28,7 +35,8 @@ export function PinPad({ onSubmit, onClear, error }: PinPadProps) {
       const next = [...digits, key];
       setDigits(next);
       if (next.length === 4) {
-        setTimeout(() => {
+        if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+        submitTimerRef.current = setTimeout(() => {
           onSubmit(next.join(''));
           setDigits([]);
         }, 100);
