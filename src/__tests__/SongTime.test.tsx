@@ -159,7 +159,7 @@ describe('SongTime', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => { jest.runOnlyPendingTimers(); });
     jest.useRealTimers();
   });
 
@@ -372,7 +372,7 @@ describe('GreetingStep', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => { jest.runOnlyPendingTimers(); });
     jest.useRealTimers();
   });
 

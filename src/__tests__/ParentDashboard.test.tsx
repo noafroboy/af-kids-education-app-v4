@@ -82,12 +82,14 @@ describe('ParentDashboard', () => {
     mockGetSetting.mockResolvedValue(undefined);
   });
 
-  it('renders loading skeleton initially', () => {
+  it('renders loading skeleton initially', async () => {
     render(<ParentDashboard />);
     expect(screen.getByTestId('parent-dashboard')).toBeInTheDocument();
-    // Loading skeletons use animate-pulse
+    // Loading skeletons use animate-pulse (visible during initial load)
     const skeleton = document.querySelector('.animate-pulse');
     expect(skeleton).toBeTruthy();
+    // Wait for data to finish loading so async state updates are properly wrapped in act()
+    await waitFor(() => expect(screen.getAllByTestId('word-row')).toHaveLength(2));
   });
 
   it('renders data-testid parent-dashboard', async () => {
