@@ -59,6 +59,7 @@ export function StepAge({ onNext, onBack }: StepAgeProps) {
             Back / 返回
           </button>
           <button
+            data-testid="onboarding-next"
             onClick={() => { if (selected !== null) onNext(selected); }}
             disabled={selected === null}
             className="flex-1 min-h-[88px] bg-[#FF6B35] text-white text-xl font-bold rounded-2xl disabled:opacity-50"

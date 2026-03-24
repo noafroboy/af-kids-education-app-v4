@@ -85,7 +85,7 @@ export function HomeScreen() {
         <Link
           href="/parent"
           data-testid="parent-icon"
-          className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow text-3xl"
+          className="w-[88px] h-[88px] flex items-center justify-center rounded-full bg-white shadow text-3xl"
           aria-label="Parent settings"
         >
           🐼
@@ -134,7 +134,7 @@ export function HomeScreen() {
         <Link
           href="/session"
           data-testid="start-session-btn"
-          className="block w-full min-h-[64px] bg-[#FF6B35] text-white text-xl font-bold rounded-2xl shadow-lg text-center py-4"
+          className="block w-full min-h-[88px] bg-[#FF6B35] text-white text-xl font-bold rounded-2xl shadow-lg text-center py-4"
           style={{ fontFamily: 'var(--font-fredoka)' }}
         >
           Start Session / 开始学习 🚀

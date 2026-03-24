@@ -1,0 +1,222 @@
+{
+  "task_id": 181,
+  "task_type": "integration_verification",
+  "approach": "conservative",
+
+  "files_to_modify": [
+    {
+      "path": "src/components/onboarding/StepAge.tsx",
+      "reason": "Add data-testid=\"onboarding-next\" to Next button (missing, required by onboarding E2E test)"
+    },
+    {
+      "path": "src/components/ui/PinPad.tsx",
+      "reason": "Add data-testid=\"pin-pad\" to outer wrapper div (missing, required by parent-dashboard E2E test)"
+    },
+    {
+      "path": "src/components/activities/SongPlayer.tsx",
+      "reason": "235 lines → exceeds 200-line limit. Extract SongLyricsPanel component to reduce to ≤200 lines"
+    },
+    {
+      "path": "src/components/HomeScreen.tsx",
+      "reason": "start-session-btn has min-h-[64px] (64px < 88px) and parent-icon has w-12 h-12 (48px < 88px). Fix both tap targets to ≥88px"
+    },
+    {
+      "path": "package.json",
+      "reason": "Add @playwright/test devDependency and test:e2e script"
+    }
+  ],
+
+  "files_to_create": [
+    {
+      "path": "playwright.config.ts",
+      "reason": "Playwright E2E test configuration: Chromium only, iPhone SE viewport (375x667), 30s timeout, webServer using npm run dev"
+    },
+    {
+      "path": "tests/e2e/helpers/seed-db.ts",
+      "reason": "Helper to seed IndexedDB via page.evaluate() with onboarding-complete settings and SHA-256 PIN hash for '1234'"
+    },
+    {
+      "path": "tests/e2e/onboarding.spec.ts",
+      "reason": "E2E test: full onboarding wizard → home screen with name, then reload verifies IndexedDB persistence"
+    },
+    {
+      "path": "tests/e2e/session.spec.ts",
+      "reason": "E2E test: guided session flow (greeting → mood → explore cards × 3 → celebration overlay)"
+    },
+    {
+      "path": "tests/e2e/free-play.spec.ts",
+      "reason": "E2E test: all 4 activity routes accessible from home screen, audio button visible"
+    },
+    {
+      "path": "tests/e2e/parent-dashboard.spec.ts",
+      "reason": "E2E test: PIN pad → wrong PIN × 2 (error state) → correct PIN → dashboard → word detail sheet"
+    },
+    {
+      "path": "tests/e2e/sanity.spec.ts",
+      "reason": "Cross-cutting sanity: no hardcoded API keys, no component >200 lines, activity routes render content, audio buttons have aria-label, tap targets ≥88px"
+    },
+    {
+      "path": "src/components/activities/SongLyricsPanel.tsx",
+      "reason": "Extracted from SongPlayer: renders the scrollable lyrics list with word chips. Reduces SongPlayer.tsx to ≤200 lines"
+    }
+  ],
+
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create feature branch: git checkout -b af/181-integration-verification-task-write-play/1",
+      "type": "git"
+    },
+    {
+      "step": 2,
+      "description": "Install @playwright/test and Chromium browser: npm install --save-dev @playwright/test && npx playwright install chromium",
+      "type": "setup"
+    },
+    {
+      "step": 3,
+      "description": "Fix StepAge.tsx: add data-testid='onboarding-next' to the Next button",
+      "type": "code_fix",
+      "files": ["src/components/onboarding/StepAge.tsx"]
+    },
+    {
+      "step": 4,
+      "description": "Fix PinPad.tsx: add data-testid='pin-pad' to outer wrapper div",
+      "type": "code_fix",
+      "files": ["src/components/ui/PinPad.tsx"]
+    },
+    {
+      "step": 5,
+      "description": "Fix HomeScreen.tsx: change start-session-btn min-h-[64px]→min-h-[88px] and parent-icon w-12 h-12→w-[88px] h-[88px]",
+      "type": "code_fix",
+      "files": ["src/components/HomeScreen.tsx"]
+    },
+    {
+      "step": 6,
+      "description": "Extract SongLyricsPanel.tsx from SongPlayer.tsx to bring SongPlayer under 200 lines",
+      "type": "refactor",
+      "files": [
+        "src/components/activities/SongPlayer.tsx",
+        "src/components/activities/SongLyricsPanel.tsx"
+      ]
+    },
+    {
+      "step": 7,
+      "description": "Create playwright.config.ts at project root",
+      "type": "new_file"
+    },
+    {
+      "step": 8,
+      "description": "Create tests/e2e/helpers/seed-db.ts",
+      "type": "new_file"
+    },
+    {
+      "step": 9,
+      "description": "Create tests/e2e/onboarding.spec.ts",
+      "type": "new_file"
+    },
+    {
+      "step": 10,
+      "description": "Create tests/e2e/session.spec.ts",
+      "type": "new_file"
+    },
+    {
+      "step": 11,
+      "description": "Create tests/e2e/free-play.spec.ts",
+      "type": "new_file"
+    },
+    {
+      "step": 12,
+      "description": "Create tests/e2e/parent-dashboard.spec.ts",
+      "type": "new_file"
+    },
+    {
+      "step": 13,
+      "description": "Create tests/e2e/sanity.spec.ts",
+      "type": "new_file"
+    },
+    {
+      "step": 14,
+      "description": "Update package.json: add @playwright/test to devDependencies, add test:e2e script",
+      "type": "config_update"
+    },
+    {
+      "step": 15,
+      "description": "Run npx playwright test and iterate on failures",
+      "type": "verify"
+    },
+    {
+      "step": 16,
+      "description": "Write integration-report.md with pass/fail results",
+      "type": "documentation"
+    },
+    {
+      "step": 17,
+      "description": "git add, commit, push; write pr-body.md",
+      "type": "git"
+    }
+  ],
+
+  "expected_tests": [
+    "tests/e2e/onboarding.spec.ts — onboarding flow + IndexedDB persistence",
+    "tests/e2e/session.spec.ts — guided session from home to celebration",
+    "tests/e2e/free-play.spec.ts — all 4 activity routes accessible",
+    "tests/e2e/parent-dashboard.spec.ts — PIN pad, wrong PIN errors, correct PIN, word detail sheet",
+    "tests/e2e/sanity.spec.ts — no hardcoded keys, no big components, tap targets, aria-labels"
+  ],
+
+  "risk_areas": [
+    {
+      "area": "IndexedDB seeding in Playwright",
+      "risk": "medium",
+      "mitigation": "Navigate to page first to trigger DB init via getDB(), then seed via page.evaluate() using raw indexedDB API"
+    },
+    {
+      "area": "SHA-256 PIN hash for test '1234'",
+      "risk": "low",
+      "mitigation": "Compute hash dynamically in browser context using crypto.subtle, not hardcoded"
+    },
+    {
+      "area": "SongPlayer extraction",
+      "risk": "low",
+      "mitigation": "Extract only the purely presentational lyrics panel, keep all state in SongPlayer"
+    },
+    {
+      "area": "Audio APIs in headless Chromium",
+      "risk": "medium",
+      "mitigation": "Tests only check element visibility, not audio playback. Howler may throw but won't crash the UI"
+    },
+    {
+      "area": "Framer Motion animation delays",
+      "risk": "low",
+      "mitigation": "Playwright's built-in auto-wait handles element visibility after animations within 30s timeout"
+    },
+    {
+      "area": "GreetingStep 3-second auto-proceed",
+      "risk": "low",
+      "mitigation": "Test clicks session-proceed-btn immediately; waitForSelector handles the timing"
+    },
+    {
+      "area": "streak-calendar only shown when sessions.length > 0",
+      "risk": "medium",
+      "mitigation": "Seed a completed session record in DB seed helper so dashboard shows stats and streak-calendar"
+    }
+  ],
+
+  "persistence_strategy": "IndexedDB via idb library. All user data (settings, progress, sessions) stored client-side. Tests seed IndexedDB via page.evaluate() using the raw indexedDB browser API after triggering DB initialization by navigating to the app.",
+
+  "error_handling_approach": "All async operations in the app already have try/catch with user-facing error states. Tests verify error states (wrong PIN shows error text). Sanity tests use Node fs which is synchronous, no async errors expected.",
+
+  "tap_target_fixes": {
+    "start-session-btn": "Change min-h-[64px] to min-h-[88px] in HomeScreen.tsx",
+    "parent-icon": "Change w-12 h-12 (48px) to w-[88px] h-[88px] in HomeScreen.tsx"
+  },
+
+  "missing_testids": {
+    "onboarding-next_on_StepAge": "StepAge Next button line 62 — add data-testid='onboarding-next'",
+    "pin-pad_on_PinPad": "PinPad outer wrapper div line 44 — add data-testid='pin-pad'"
+  },
+
+  "component_size_violations": {
+    "SongPlayer.tsx": "235 lines → extract SongLyricsPanel.tsx, reduces SongPlayer to ~185 lines"
+  }
+}

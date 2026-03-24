@@ -42,7 +42,7 @@ export function PinPad({ onSubmit, onClear, error }: PinPadProps) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div data-testid="pin-pad" className="flex flex-col items-center gap-6">
       {/* PIN display */}
       <motion.div
         className="flex gap-3"
