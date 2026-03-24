@@ -97,7 +97,7 @@ describe('ListenAndFind', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => { jest.runOnlyPendingTimers(); });
     jest.useRealTimers();
   });
 
@@ -230,5 +230,21 @@ describe('ListenAndFind', () => {
         expect.objectContaining({ wordsAttempted: 1 })
       );
     });
+  });
+
+  it('plays audio via audioManager when round starts (not raw Audio)', () => {
+    const spy = jest.spyOn(audioManager, 'playWordEn').mockImplementation(() => {});
+    render(<ListenAndFind wordList={testWords} age={4} onComplete={mockOnComplete} />);
+    expect(spy).toHaveBeenCalledWith(expect.stringMatching(/\/audio\/en\/.*\.mp3/));
+    spy.mockRestore();
+  });
+
+  it('Play Again button calls audioManager.playWordEn', () => {
+    const spy = jest.spyOn(audioManager, 'playWordEn').mockImplementation(() => {});
+    render(<ListenAndFind wordList={testWords} age={4} onComplete={mockOnComplete} />);
+    spy.mockClear(); // clear the mount call
+    fireEvent.click(screen.getByText('Play Again / 再播放'));
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });

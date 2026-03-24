@@ -242,6 +242,9 @@ describe('MatchingPairs', () => {
       if (matched.length === 0) {
         // no match, wait for revert
         act(() => { jest.advanceTimersByTime(800); });
+      } else {
+        // flush the nested setTimeout(() => checkComplete(...), 0)
+        act(() => { jest.advanceTimersByTime(0); });
       }
       attempts++;
     }

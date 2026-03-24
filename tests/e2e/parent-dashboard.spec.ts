@@ -10,6 +10,17 @@ test.beforeEach(async ({ page }) => {
   await seedDB(page);
 });
 
+test('direct navigation to /parent/dashboard redirects to PIN page', async ({ page }) => {
+  // Navigate directly to dashboard without any prior PIN authentication
+  await page.goto('/parent/dashboard');
+
+  // Should be redirected to the PIN gate
+  await expect(page.getByTestId('parent-pin-page')).toBeVisible({ timeout: 5000 });
+
+  // Dashboard content should NOT be visible
+  await expect(page.getByTestId('parent-dashboard')).not.toBeVisible();
+});
+
 test('parent dashboard: wrong PIN → error, correct PIN → dashboard + streak + word detail', async ({ page }) => {
   // 1. Navigate to parent page
   await page.goto('/parent');
