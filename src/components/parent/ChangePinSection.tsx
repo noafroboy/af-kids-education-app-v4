@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PinPad } from '@/components/ui/PinPad';
 import { verifyPIN, hashPIN } from '@/lib/crypto';
 import { useDB } from '@/hooks/useDB';
@@ -11,6 +11,13 @@ export function ChangePinSection() {
   const [step, setStep] = useState<'verify' | 'newPin' | 'done'>('verify');
   const [pinError, setPinError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const pinErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pinErrorTimerRef.current) clearTimeout(pinErrorTimerRef.current);
+    };
+  }, []);
 
   async function handleVerifyCurrent(pin: string) {
     if (!db) return;
@@ -25,7 +32,8 @@ export function ChangePinSection() {
       } else {
         setPinError(true);
         setErrorMsg('Wrong PIN / 密码错误');
-        setTimeout(() => setPinError(false), 500);
+        if (pinErrorTimerRef.current) clearTimeout(pinErrorTimerRef.current);
+        pinErrorTimerRef.current = setTimeout(() => setPinError(false), 500);
       }
     } catch (err) {
       console.error('[ChangePinSection] verify error:', err);

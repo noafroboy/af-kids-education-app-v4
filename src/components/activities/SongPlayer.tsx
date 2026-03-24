@@ -28,6 +28,7 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
   const rafRef = useRef<number>(0);
   const currentLineRef = useRef<HTMLDivElement | null>(null);
   const playingRef = useRef(playing);
+  const wordTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   playingRef.current = playing;
 
   const cancelRaf = useCallback(() => {
@@ -64,6 +65,7 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
     howl.on('end', handleSongEnd);
     return () => {
       cancelRaf();
+      if (wordTapTimerRef.current) clearTimeout(wordTapTimerRef.current);
       howl.unload();
     };
   }, [song.audioPath, handleSongEnd, cancelRaf, retryCount]);
@@ -98,7 +100,8 @@ export default function SongPlayer({ song, vocabulary, onBack, onSongEnd }: Song
     setPlaying(false);
     setActivatedWordId(word.id);
     audioManager.playWord(word.audioEnPath, word.audioZhPath).then(() => {
-      setTimeout(() => {
+      if (wordTapTimerRef.current) clearTimeout(wordTapTimerRef.current);
+      wordTapTimerRef.current = setTimeout(() => {
         setActivatedWordId(null);
         if (!songEnded && howlRef.current) {
           howlRef.current.play();
