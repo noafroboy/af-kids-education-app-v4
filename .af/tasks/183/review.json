@@ -1,0 +1,46 @@
+{
+  "verdict": "pass",
+  "dimensions": [
+    {
+      "name": "Requirements Met",
+      "score": 10,
+      "gaps_to_10": "All six requirements from the task spec are fully implemented and verified."
+    },
+    {
+      "name": "Error Handling",
+      "score": 8,
+      "gaps_to_10": "audioManager.playWordEn has internal try/catch with console.warn. Timeout cleanup correctly prevents setState-on-unmounted-component errors. No data-fetching paths in these UI components require additional error states."
+    },
+    {
+      "name": "UX Completeness",
+      "score": 9,
+      "gaps_to_10": "All buttons are functional. Play Again replays audio. Tap targets are 88x88px. One non-blocking observation: the 0ms setTimeout in MatchingPairs line 91 (checkComplete) is untracked, but is explicitly outside task scope and is extremely unlikely to fire after unmount."
+    },
+    {
+      "name": "Code Quality",
+      "score": 9,
+      "gaps_to_10": "Changes are minimal and surgical. All three files remain well under 200 lines (FlipCard: 92, ListenAndFind: 167, MatchingPairs: 161). One minor note: in MatchingPairs handleFlip, the inner `tid2` is captured and pushed to timeoutsRef inside the setCards callback, which is correct but slightly unusual — future maintainers should note the closure captures timeoutsRef correctly."
+    },
+    {
+      "name": "Test Coverage",
+      "score": 9,
+      "gaps_to_10": "Existing audio test updated to assert on audioManager.playWordEn mock rather than global.Audio. New test added for Play Again button verifying audioManager.playWordEn is called with the current word's audioEnPath. Happy path, wrong tap, reveal, and onComplete tests all pass (22/22). afterEach act() warning is non-fatal and pre-existing."
+    },
+    {
+      "name": "Security",
+      "score": 10,
+      "gaps_to_10": "No hardcoded API keys. No user input flows into audio paths (paths come from server-side vocabulary data). No prompt injection surface."
+    }
+  ],
+  "average_score": 9.17,
+  "issues": [
+    {
+      "severity": "P2",
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "description": "Line 91: `setTimeout(() => checkComplete(updated), 0)` is not registered in timeoutsRef. If a component unmounts at the exact frame a successful match is confirmed, this 0ms callback could fire and call setIsDone/onComplete on an unmounted component.",
+      "fix_guidance": "Capture the return value and push to timeoutsRef: `const tid0 = setTimeout(() => checkComplete(updated), 0); timeoutsRef.current.push(tid0);` — however the task spec explicitly excludes this timeout ('There are two timeouts: the outer 400ms check and the inner 800ms flip-back. Both must be captured.'), so this is outside the current task scope.",
+      "checklist_item": "ux"
+    }
+  ],
+  "summary": "All task requirements are fully implemented and correct. FlipCard outer container has minWidth/minHeight of 88px. ListenAndFind uses audioManager.playWordEn in both setupRound and the Play Again button, with all three handleTap setTimeout calls registered in timeoutsRef and a cleanup useEffect. MatchingPairs registers both the 400ms outer and 800ms inner setTimeout calls in timeoutsRef with a cleanup useEffect. Tests are updated to mock audioManager and a new test verifies the Play Again button behavior. All 22 tests pass. All three files are under 200 lines. The only observation is a pre-existing untracked 0ms setTimeout in MatchingPairs that was explicitly excluded from the task specification."
+}
