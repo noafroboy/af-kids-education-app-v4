@@ -1,0 +1,95 @@
+{
+  "files_to_modify": [
+    "src/components/activities/FlipCard.tsx",
+    "src/components/activities/ListenAndFind.tsx",
+    "src/components/activities/MatchingPairs.tsx",
+    "src/__tests__/ListenAndFind.test.tsx"
+  ],
+  "files_to_create": [],
+  "approach": "A — Conservative: make the exact minimum changes specified in the task description, plus fix the test that directly tests the removed `new Audio()` behaviour so the suite passes",
+  "steps": [
+    {
+      "id": 1,
+      "file": "src/components/activities/FlipCard.tsx",
+      "action": "Change minWidth/minHeight from 80 to 88 in the outer container style object (line 30)"
+    },
+    {
+      "id": 2,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "Add `import { audioManager } from '@/lib/audio';` at the top of the file"
+    },
+    {
+      "id": 3,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "In setupRound callback, replace `const audio = new Audio(target.audioEnPath); audio.play().catch(() => {});` with `audioManager.playWordEn(target.audioEnPath);`"
+    },
+    {
+      "id": 4,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "Replace Play Again button onClick from `const a = new Audio(current?.audioEnPath); a.play().catch(() => {});` to `if (current?.audioEnPath) audioManager.playWordEn(current.audioEnPath);`"
+    },
+    {
+      "id": 5,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "Add `const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);` near existing refs (after wrongAttemptsRef / correctFirstRef)"
+    },
+    {
+      "id": 6,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "In handleTap, wrap all three setTimeout calls (1200ms advance, 400ms wrong-card reset, 2000ms reveal-then-advance) to capture return value into `tid` and push onto `timeoutsRef.current`"
+    },
+    {
+      "id": 7,
+      "file": "src/components/activities/ListenAndFind.tsx",
+      "action": "Add cleanup useEffect: `useEffect(() => { return () => { timeoutsRef.current.forEach(clearTimeout); }; }, []);`"
+    },
+    {
+      "id": 8,
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "action": "Add `useEffect` to the import line (useState, useRef, useCallback are already imported)"
+    },
+    {
+      "id": 9,
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "action": "Add `const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);` near existing refs (after wrongFlipsRef)"
+    },
+    {
+      "id": 10,
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "action": "In handleFlip, capture the outer 400ms setTimeout return value into `const tid1`; capture the inner 800ms setTimeout return value into `const tid2`; push both onto `timeoutsRef.current`"
+    },
+    {
+      "id": 11,
+      "file": "src/components/activities/MatchingPairs.tsx",
+      "action": "Add cleanup useEffect: `useEffect(() => { return () => { timeoutsRef.current.forEach(clearTimeout); }; }, []);`"
+    },
+    {
+      "id": 12,
+      "file": "src/__tests__/ListenAndFind.test.tsx",
+      "action": "Replace the test 'plays audio on mount with first word audioEnPath' to mock `audioManager` from '@/lib/audio' and verify `mockPlayWordEn` is called with the first word's audioEnPath instead of asserting on `global.Audio`"
+    },
+    {
+      "id": 13,
+      "file": "src/__tests__/ListenAndFind.test.tsx",
+      "action": "Add a test verifying the Play Again button calls audioManager.playWordEn with current word's audioEnPath"
+    }
+  ],
+  "expected_tests": [
+    "Existing: ListenAndFind renders container",
+    "Existing: ListenAndFind shows 3 choice cards for age=3",
+    "Existing: ListenAndFind shows 4 choice cards for age=4",
+    "Existing: ListenAndFind progress bar present",
+    "Updated: ListenAndFind plays audio on mount via audioManager.playWordEn (was: global.Audio)",
+    "New: ListenAndFind Play Again button calls audioManager.playWordEn",
+    "Existing: ListenAndFind correct tap flow",
+    "Existing: ListenAndFind wrong tap flow",
+    "Existing: MatchingPairs all existing tests pass unchanged"
+  ],
+  "risk_areas": [
+    "The existing test 'plays audio on mount with first word audioEnPath' asserts on `global.Audio` constructor — it WILL fail after the change. Must update this test.",
+    "MatchingPairs does not yet import useEffect — need to add it to the import statement.",
+    "The inner 800ms setTimeout in MatchingPairs is nested inside the outer 400ms callback. The inner `tid` capture must be done inside the outer callback before returning, so it is accessible and pushed onto timeoutsRef."
+  ],
+  "persistence_strategy": "N/A — pure UI component changes, no data storage involved",
+  "error_handling_approach": "audioManager.playWordEn already has internal try/catch with console.warn. Timeout cleanup prevents spurious React state-update-on-unmounted-component errors."
+}
