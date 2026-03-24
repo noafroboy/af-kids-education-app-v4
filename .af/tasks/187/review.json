@@ -1,0 +1,46 @@
+{
+  "verdict": "pass",
+  "dimensions": [
+    {
+      "name": "Requirements Met",
+      "score": 10,
+      "gaps_to_10": "All five explicit requirements satisfied: (1) playWordEn resets error and evicts stale cache, (2) visibilitychange triggers counter refresh, (3) Playwright viewport is 375×667, (4) removeEventListener present in cleanup, (5) audio.ts is 120 lines — well under 200."
+    },
+    {
+      "name": "Error Handling",
+      "score": 9,
+      "gaps_to_10": "playWordEn has try/catch. playWord uses loaderror callbacks. HomeScreen fetchData is wrapped in try/catch with console.warn. No new unhandled async paths introduced. Minor: playEffect still lacks error-state reset, but that was intentionally out of scope."
+    },
+    {
+      "name": "UX Completeness",
+      "score": 9,
+      "gaps_to_10": "Visibility-change re-fetch is instantaneous and unobtrusive. No new loading states needed since the existing counter updates in-place. All interactive elements remain functional."
+    },
+    {
+      "name": "Code Quality",
+      "score": 9,
+      "gaps_to_10": "Changes are minimal, targeted, and follow existing patterns exactly. No unnecessary abstractions introduced. audio.ts (120 lines) and HomeScreen.tsx (156 lines) are both within component-size limits."
+    },
+    {
+      "name": "Test Coverage",
+      "score": 8,
+      "gaps_to_10": "Five audio tests and four HomeScreen tests cover all required scenarios including the happy path, eviction-on-error, no-eviction-without-error, hidden-state guard, and unmount cleanup. One minor test assertion quality issue: in audio.test.ts line 113, `expect(cache.get('/audio/zh.mp3')).not.toBe(zhHowl)` passes trivially because the cache entry is undefined at assertion time (zhPath is evicted but re-created lazily inside the 'end' callback, which never fires in the synchronous test). The assertion is technically correct but would be more precise as `expect(cache.has('/audio/zh.mp3')).toBe(false)`."
+    },
+    {
+      "name": "Security",
+      "score": 10,
+      "gaps_to_10": "No hardcoded secrets, no user-supplied data rendered unsanitized, no new API routes or auth surfaces introduced."
+    }
+  ],
+  "average_score": 9.2,
+  "issues": [
+    {
+      "severity": "P2",
+      "file": "src/__tests__/audio.test.ts",
+      "description": "In the 'evicts both en and zh cache entries when error was set' test (line 113), `expect(cache.get('/audio/zh.mp3')).not.toBe(zhHowl)` passes trivially because zhPath is evicted but never re-added synchronously — getOrCreate(zhPath) is called lazily inside the Howl 'end' callback which does not fire in tests. The assertion evaluates `undefined !== zhHowl` which is always true. It confirms the stale instance is gone but does not confirm the eviction mechanism was the cause.",
+      "fix_guidance": "Replace `expect(cache.get('/audio/zh.mp3')).not.toBe(zhHowl)` with `expect(cache.has('/audio/zh.mp3')).toBe(false)` to explicitly assert the eviction. Similarly replace the enPath assertion with identity-safe checks only after confirming re-creation (or keep the current enPath assertion which is valid since getOrCreate(enPath) IS called synchronously in the Promise constructor).",
+      "checklist_item": "test_quality"
+    }
+  ],
+  "summary": "All three changes are correctly implemented and all five explicit requirements are satisfied. The AudioManager error-reset logic in both playWordEn and playWord correctly evicts stale cache entries and clears the flag before each new attempt. HomeScreen.tsx properly extracts fetchData, attaches the visibilitychange listener, and removes it in the effect cleanup — the counter will refresh automatically when the tab regains focus. The Playwright config now uses an empty use: {} in the chromium project, preserving the global 375×667 viewport. Tests are comprehensive and cover all required behavioral cases. The single P2 finding is a minor test assertion precision issue in audio.test.ts that does not affect production correctness."
+}
