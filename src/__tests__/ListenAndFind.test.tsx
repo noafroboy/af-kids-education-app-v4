@@ -54,12 +54,18 @@ jest.mock('@/hooks/useAudio', () => ({
   }),
 }));
 
-// Mock HTML Audio element
-const mockPlay = jest.fn().mockResolvedValue(undefined);
-Object.defineProperty(global, 'Audio', {
-  writable: true,
-  value: jest.fn().mockImplementation(() => ({ play: mockPlay })),
-});
+// Mock audioManager (used directly by ListenAndFind for playWordEn calls)
+jest.mock('@/lib/audio', () => ({
+  audioManager: {
+    playWordEn: jest.fn(),
+    playWord: jest.fn(),
+    playEffect: jest.fn(),
+    preloadWords: jest.fn(),
+    unlockAudioContext: jest.fn(),
+    hasError: false,
+    playing: false,
+  },
+}));
 
 const makeWord = (id: string, english: string, category = 'animals'): VocabularyWord => ({
   id,
@@ -118,9 +124,10 @@ describe('ListenAndFind', () => {
   });
 
   it('plays audio on mount with first word audioEnPath', () => {
+    const { audioManager } = jest.requireMock('@/lib/audio');
     render(<ListenAndFind wordList={testWords} age={4} onComplete={mockOnComplete} />);
-    expect(global.Audio).toHaveBeenCalledWith(testWords[0].audioEnPath);
-    expect(mockPlay).toHaveBeenCalled();
+    // audioManager.playWordEn() is now used instead of native new Audio()
+    expect(audioManager.playWordEn).toHaveBeenCalledWith(testWords[0].audioEnPath);
   });
 
   it('tapping correct card calls updateWord with wordId and true', async () => {

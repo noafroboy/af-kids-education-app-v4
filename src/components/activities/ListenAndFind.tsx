@@ -6,6 +6,7 @@ import { useAudio } from '@/hooks/useAudio';
 import { shuffleArray } from '@/lib/utils';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ChoiceCard } from './ChoiceCard';
+import { audioManager } from '@/lib/audio';
 import type { VocabularyWord } from '@/types';
 
 type CardState = 'idle' | 'correct' | 'wrong' | 'reveal';
@@ -54,8 +55,7 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
       setCardStates(states);
       setWrongAttempts(0);
       setRevealText(null);
-      const audio = new Audio(target.audioEnPath);
-      audio.play().catch(() => {});
+      audioManager.playWordEn(target.audioEnPath);
     },
     [wordList, choiceCount]
   );
@@ -131,7 +131,7 @@ export function ListenAndFind({ wordList, age, onComplete }: ListenAndFindProps)
           Find: {current?.englishWord}
         </p>
         <button
-          onClick={() => { const a = new Audio(current?.audioEnPath); a.play().catch(() => {}); }}
+          onClick={() => { if (current) audioManager.playWordEn(current.audioEnPath); }}
           className="px-4 py-2 bg-[#4ECDC4] text-white rounded-xl text-sm font-bold"
         >
           Play Again / 再播放

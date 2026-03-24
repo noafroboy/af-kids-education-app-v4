@@ -3,12 +3,19 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MascotIdle } from '@/components/ui/MascotIdle';
+import { audioManager } from '@/lib/audio';
 
 interface GreetingStepProps {
   onProceed: () => void;
 }
 
 export function GreetingStep({ onProceed }: GreetingStepProps) {
+  // Play greeting audio on mount — spec requires "greeting with audio"
+  useEffect(() => {
+    audioManager.playWordEn('/audio/en/lets-learn.mp3');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => onProceed(), 3000);
     return () => clearTimeout(timer);
