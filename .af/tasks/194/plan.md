@@ -1,0 +1,206 @@
+# Task 194 — Plan: Fix Duplicate useEffect + verify-assets Script
+
+## Overview
+
+This task has two parts:
+
+1. **ExploreCards.tsx refactor** — merge two redundant `useEffect` hooks that both attempt to load the word list into a single, clean effect that avoids React StrictMode double-invocation and adds `audioManager.preloadWords` for immediate audio playback.
+
+2. **New `scripts/verify-assets.ts`** — a prebuild guard that walks every word in `VOCABULARY_SEED` and confirms its image PNG and two audio MP3s exist on disk, exiting 1 if anything is missing.
+
+---
+
+## Assumption Audit
+
+Before writing code, these assumptions were made about ambiguous points in the task description:
+
+| Assumption | Rationale |
+|---|---|
+| The second `useEffect` (lines 53-59) is entirely redundant — it only re-fetches `childName` which the first effect already fetches in the same `Promise.all`. | Reading the code confirms both effects call `getSetting(db, 'childName')`. The merge removes the duplicate. |
+| `audioManager.preloadWords(words)` should be called with the final, shuffled+sliced word array, not the raw DB result. | The goal is to preload what the user will actually see. The shuffleArray call is inside the first effect and the final `words` var holds the sliced result. |
+| The existing `__mocks__` may need a `preloadWords` no-op added to avoid TypeErrors in tests. | The audio mock is likely a partial mock; will verify and add if needed. |
+| `imagePath` in VOCABULARY_SEED does NOT include `/public/` — the task description says check `{projectRoot}{word.imagePath}`, not `{projectRoot}/public{word.imagePath}`. | Task description is explicit about this asymmetry between image and audio paths. |
+| `process.cwd()` is used (not `__dirname`) in the script because tsx runs from the project root. | More portable and explicit. |
+| The cleanup flag (`cancelled`) is a `let` variable, NOT a React ref. | React StrictMode mounts/unmounts/remounts in dev; a local `let` correctly prevents setState after the first unmount. |
+
+### Items the task does NOT specify (and defaults chosen)
+
+- **Which words to load when db prop is present with `wordList` prop**: the task says "if wordList prop is provided and non-empty, set state directly from the prop". No DB call made. ✓ matches existing code.
+- **Whether to shuffle when using wordList prop**: existing code does not shuffle the prop; new merged effect should match (no shuffle for prop).
+- **Table format for verify-assets**: task says "formatted table row per word". I'll use padded columns: `word | image | audio-en | audio-zh`.
+- **Error on missing asset**: script exits 1 only after checking ALL words (not on first failure), so the table shows all failures at once.
+
+### Risks & Open Questions
+
+1. **`audioManager.preloadWords` mock** — if the Jest mock for `src/lib/audio` or the `useAudio` hook doesn't include `preloadWords`, tests will throw. LOW risk: easy to add a `jest.fn()` stub.
+2. **`imagePath` path convention** — the task says `{projectRoot}{word.imagePath}` for images but `{projectRoot}/public{word.audioEnPath}` for audio. This means images might be stored at `/images/...` relative to project root (i.e., inside `public/` when Next.js serves them), OR the `imagePath` already contains `public/`. I'll follow the task spec literally. If the verify script reports all images as FAIL, a quick tweak to add `/public` prefix fixes it.
+3. **`prebuild` script blocking CI** — if assets haven't been generated (e.g., on a fresh checkout), `npm run build` will fail. This is intentional per the task requirements. CI pipelines would need to run `generate-assets` first.
+
+---
+
+## Approach Alternatives
+
+### APPROACH A — Conservative (chosen)
+**Effort:** S
+**Risk:** Low
+**Description:** Directly merge the two `useEffect` hooks in ExploreCards.tsx with minimal structural changes. Keep the `getAllWords` + `getSetting` pattern already present. Add `audioManager.preloadWords` after `setWords`. Create `verify-assets.ts` following the exact interface described in the task. Add two lines to `package.json`.
+**Trade-off:** Minimal blast radius — only touches ExploreCards and package.json; tests are unlikely to break.
+
+### APPROACH B — Ideal
+**Effort:** M
+**Risk:** Medium
+**Description:** Extract the word-loading logic from ExploreCards into a custom `useWordList(wordList?: VocabularyWord[])` hook. This hook handles the cancelled flag, DB loading, childName fetching, and preload call internally. ExploreCards becomes a pure "presentation" component under 100 lines.
+**Trade-off:** Better long-term architecture, but introduces a new hook file not requested by the task, increasing scope and review surface.
+
+### Approach Decision
+
+**Chosen: APPROACH A (Conservative)**
+
+The task explicitly says "make the minimum changes necessary to complete the task" and "do not refactor unrelated code". ExploreCards.tsx is ~140 lines, which is under the 150-line guidance limit, so extraction is not required. The conservative approach delivers all the requirements with zero scope creep.
+
+---
+
+## File-by-File Change Plan
+
+### 1. `src/components/activities/ExploreCards.tsx`
+
+**Current state:** Two `useEffect` hooks:
+- Effect 1 (lines ~30-51): checks `wordList` prop first; if absent, queries `getAllWords(db)` + `getSetting(db, 'childName')` in a `Promise.all`. Sets `words` and `childName`.
+- Effect 2 (lines ~53-59): when `db` and `words.length > 0`, re-fetches `getSetting(db, 'childName')`. Redundant.
+
+**Change:** Replace both effects with a single merged `useEffect`:
+
+```typescript
+useEffect(() => {
+  let cancelled = false;
+
+  async function load() {
+    if (wordList && wordList.length > 0) {
+      if (!cancelled) setWords(wordList);
+      if (!cancelled) audioManager.preloadWords(wordList);
+      setIsLoading(false);
+      return;
+    }
+    if (!db) return;
+    try {
+      const [all, nameSetting] = await Promise.all([
+        getAllWords(db as never),
+        getSetting(db as never, 'childName'),
+      ]);
+      const shuffled = shuffleArray(all).slice(0, 6);
+      if (!cancelled) {
+        setWords(shuffled);
+        if (nameSetting?.value) setChildName(String(nameSetting.value));
+        audioManager.preloadWords(shuffled);
+      }
+    } catch (err) {
+      console.warn('[ExploreCards] Failed to load:', err);
+    } finally {
+      if (!cancelled) setIsLoading(false);
+    }
+  }
+
+  load();
+  return () => { cancelled = true; };
+}, [db, wordList]);
+```
+
+Add `import { audioManager } from '@/lib/audio';` to the top of the file.
+
+**Dependency array:** `[db, wordList]` — same as the first existing effect, which is correct.
+
+**Import audit:** `audioManager` is exported from `@/lib/audio` as a singleton. It needs to be imported directly (not via `useAudio` hook) because `preloadWords` is called in the async body, not in response to a user event.
+
+### 2. `scripts/verify-assets.ts` (NEW FILE)
+
+```typescript
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { VOCABULARY_SEED } from '../src/lib/vocabulary-seed';
+
+const projectRoot = process.cwd();
+
+let totalChecked = 0;
+let missingImages = 0;
+let missingAudioEn = 0;
+let missingAudioZh = 0;
+
+console.log('\nVerifying vocabulary assets...\n');
+console.log('Word'.padEnd(20) + 'Image'.padEnd(10) + 'Audio-EN'.padEnd(12) + 'Audio-ZH');
+console.log('-'.repeat(52));
+
+for (const word of VOCABULARY_SEED) {
+  totalChecked++;
+
+  const imageFull  = join(projectRoot, word.imagePath);
+  const audioEnFull = join(projectRoot, 'public', word.audioEnPath);
+  const audioZhFull = join(projectRoot, 'public', word.audioZhPath);
+
+  const imageOk   = existsSync(imageFull);
+  const audioEnOk = existsSync(audioEnFull);
+  const audioZhOk = existsSync(audioZhFull);
+
+  if (!imageOk)   missingImages++;
+  if (!audioEnOk) missingAudioEn++;
+  if (!audioZhOk) missingAudioZh++;
+
+  const row =
+    word.englishWord.padEnd(20) +
+    (imageOk   ? 'PASS' : 'FAIL').padEnd(10) +
+    (audioEnOk ? 'PASS' : 'FAIL').padEnd(12) +
+    (audioZhOk ? 'PASS' : 'FAIL');
+  console.log(row);
+}
+
+const totalMissing = missingImages + missingAudioEn + missingAudioZh;
+
+if (totalMissing > 0) {
+  console.log(`\nERROR: ${totalMissing} asset(s) missing. Run npm run generate-assets to regenerate.`);
+  process.exit(1);
+}
+
+console.log(`\n✓ All ${totalChecked * 3} assets verified (${totalChecked} words × 3 files each).`);
+```
+
+### 3. `package.json`
+
+Add to `scripts`:
+```json
+"verify-assets": "tsx scripts/verify-assets.ts",
+"prebuild": "tsx scripts/verify-assets.ts"
+```
+
+---
+
+## Production-Readiness Checklist
+
+1. **Persistence** — N/A for this task. Vocabulary data is already persisted in IndexedDB (seeded on first launch). Audio and image assets are static files in `/public`. No new persistence mechanism is introduced.
+
+2. **Error handling** — The merged `useEffect` retains the existing `try/catch` with `console.warn` and the `finally` block that sets `isLoading(false)`. Empty-state UI (`No words found`) already handles the case where loading fails. The verify-assets script uses synchronous `existsSync` (no async errors possible); it exits 1 on failures which is the expected error signal for a CLI tool.
+
+3. **Input validation** — N/A for this task. No new user input is introduced.
+
+4. **Loading states** — The existing `isLoading` spinner is preserved. The merged effect still calls `setIsLoading(false)` in `finally` (DB path) and immediately after `setWords` (prop path). No regression.
+
+5. **Empty states** — Already handled: if `words.length === 0` after load, ExploreCards renders `No words found. / 没有找到词语。` This is unchanged.
+
+6. **Security** — N/A. No new API calls, no new env var usage. The verify-assets script is a local dev/CI tool, not a user-facing endpoint.
+
+7. **Component size** — ExploreCards.tsx is currently ~140 lines. After the merge it will be ~135 lines (second effect removed, `import audioManager` added). Well under 150-line limit. No extraction needed.
+
+8. **Test coverage** — The 7 existing tests in `ExploreCards.test.tsx` cover: rendering, card navigation, audio playback, and completion. After the merge, these tests must still pass. The `audioManager` mock (or `useAudio` mock) may need a `preloadWords: jest.fn()` addition. No new feature is added, so no new test is strictly required — but I will verify the existing tests pass after the change.
+
+---
+
+## Execution Order
+
+1. `git checkout -b af/194-fix-the-duplicate-wordlist-useeffect-in/1`
+2. Edit `ExploreCards.tsx` — merge effects, add import
+3. Create `scripts/verify-assets.ts`
+4. Edit `package.json` — add two script entries
+5. `npm test` — confirm existing tests pass (add `preloadWords` mock stub if needed)
+6. `npx tsx scripts/verify-assets.ts` — see results
+7. Run generate scripts as needed (images, audio-en, audio-zh)
+8. Re-run verify until all PASS
+9. `git add` specific files, `git commit`, `git push`
+10. Write `.af/tasks/194/pr-body.md`, commit and push
