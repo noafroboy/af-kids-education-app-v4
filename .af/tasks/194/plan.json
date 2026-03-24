@@ -1,0 +1,57 @@
+{
+  "task_id": "194",
+  "title": "Fix duplicate wordList useEffect in ExploreCards + create verify-assets script",
+  "files_to_modify": [
+    {
+      "path": "src/components/activities/ExploreCards.tsx",
+      "reason": "Merge two useEffects (lines ~30-51 and ~53-59) into a single effect that loads words from prop or DB, sets state once, and calls audioManager.preloadWords. Add cleanup flag to prevent setState on unmounted component."
+    },
+    {
+      "path": "package.json",
+      "reason": "Add 'verify-assets' script ('tsx scripts/verify-assets.ts') and 'prebuild' script so asset verification runs before every production build."
+    }
+  ],
+  "files_to_create": [
+    {
+      "path": "scripts/verify-assets.ts",
+      "reason": "New prebuild guard script that checks existence of every vocabulary word's image PNG and two audio MP3 files, prints a per-word PASS/FAIL table, and exits 1 if anything is missing."
+    }
+  ],
+  "approach": "A — Conservative: minimal, targeted changes. Keep existing component structure; only merge the two useEffects into one and wire in audioManager.preloadWords. New script follows exact patterns already established in scripts/generate-*.ts.",
+  "steps": [
+    "1. Create branch af/194-fix-the-duplicate-wordlist-useeffect-in/1",
+    "2. Read ExploreCards.tsx; identify the two useEffects and their shared dependency surface (db, wordList).",
+    "3. Replace the two useEffects with a single merged useEffect using a cancelled flag. Logic: if wordList prop is provided use it directly; otherwise call getAllWords(db) (plus getSetting for childName in the same Promise.all). After resolving, call audioManager.preloadWords(words).",
+    "4. Verify the dependency array is [db, wordList] and the childName fetch is still covered inside the merged effect.",
+    "5. Create scripts/verify-assets.ts following the exact import/structure described in the task. Use existsSync from 'fs', join from 'path', VOCABULARY_SEED from '../src/lib/vocabulary-seed'. Project root = process.cwd(). Check image at {root}{word.imagePath}, audioEn at {root}/public{word.audioEnPath}, audioZh at {root}/public{word.audioZhPath}. Print table and exit codes.",
+    "6. Add 'verify-assets': 'tsx scripts/verify-assets.ts' and 'prebuild': 'tsx scripts/verify-assets.ts' to package.json scripts.",
+    "7. Run 'npx tsx scripts/verify-assets.ts' to see actual results.",
+    "8. If images missing, run 'npx tsx scripts/generate-images.ts'.",
+    "9. If English audio missing, run 'npx tsx scripts/generate-audio-en.ts'.",
+    "10. If Mandarin audio missing, run 'npx tsx scripts/generate-audio-zh.ts'.",
+    "11. Re-run verify-assets until all PASS.",
+    "12. Run 'npm test' — verify ExploreCards.test.tsx still passes (no new failures).",
+    "13. Commit all source changes + any newly generated assets.",
+    "14. Write .af/tasks/194/pr-body.md, commit and push."
+  ],
+  "expected_tests": [
+    "ExploreCards.test.tsx (7 existing tests) — all must continue to pass after the useEffect merge",
+    "No new unit tests required: the change is a refactor of two effects into one with identical external behavior. The existing test suite already covers loading from prop (wordList fixture), rendering first card, navigation, audio playback, and completion overlay."
+  ],
+  "risk_areas": [
+    "childName loading: currently fetched in BOTH effects. The merged effect must still fetch it (it is inside the DB branch of the merged effect as part of the existing Promise.all). Risk: LOW — code already has this pattern.",
+    "audioManager.preloadWords in a server-side / test environment: audioManager uses Howler which is mocked in __mocks__. Need to verify the mock exposes preloadWords or add a no-op. Risk: LOW — mock already exists; may need a one-line addition.",
+    "Cleanup flag: must be a let variable inside useEffect, not a ref, to work correctly in React StrictMode double-invocation. Risk: LOW — pattern is straightforward.",
+    "verify-assets.ts path resolution: imagePath vs audio path differ (audio uses /public prefix). Risk: LOW — task description is explicit; follow it exactly.",
+    "prebuild script: if any asset is missing it exits 1 and blocks 'npm run build'. This is intentional but could surprise CI if assets haven't been generated. Risk: LOW — this is the stated requirement."
+  ],
+  "persistence_strategy": "N/A for this task — data is already persisted in IndexedDB (vocabulary) and public/ directory (static assets). No new persistence mechanism is introduced.",
+  "error_handling_approach": "ExploreCards already has try/catch around the DB fetch with console.warn and isLoading fallback. The merged effect preserves this. verify-assets.ts is a Node.js script (not a React component) — it uses existsSync (synchronous, no async errors) and exits 1 on missing assets. No try/catch needed beyond what exists.",
+  "assumptions": [
+    "The second useEffect (lines 53-59) that re-fetches childName is redundant because the first effect already fetches it inside the same Promise.all. Merging removes this duplicate call.",
+    "audioManager.preloadWords is called with the final resolved words array (after shuffling and slicing), not with the raw DB result.",
+    "The __mocks__ for audioManager either already include preloadWords or need a trivial no-op addition.",
+    "The imagePath in VOCABULARY_SEED already starts with '/' and does NOT include '/public', so the image check uses {root}{imagePath} (which resolves outside public/). The audio paths also start with '/' and the check prefixes '/public'.",
+    "process.cwd() when running 'npx tsx scripts/verify-assets.ts' from the project root equals the project root. Using process.cwd() is more reliable than __dirname for tsx scripts."
+  ]
+}
