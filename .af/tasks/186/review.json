@@ -1,0 +1,60 @@
+{
+  "verdict": "pass",
+  "dimensions": [
+    {
+      "name": "Requirements Met",
+      "score": 9,
+      "gaps_to_10": "All 7 requirements are implemented correctly. Minor gap: the plan listed expected tests for SongCoverArt emoji fallback and SongPlayerControls ▶/⏸ rendering in isolation, but those tests were not written — coverage is only via integration tests in SongTime.test.tsx."
+    },
+    {
+      "name": "Error Handling",
+      "score": 9,
+      "gaps_to_10": "SongPlayerControls shows friendly error UI with retry on audio load failure; audioManager.playWordEn has try/catch; second load failure re-triggers error UI. Gap: SongCoverArt uses Next.js Image onError which may not fire in all SSR/browser scenarios (e.g., server-side rendering where onError is a no-op), leaving a small window where a broken image is shown without fallback on first paint."
+    },
+    {
+      "name": "UX Completeness",
+      "score": 8,
+      "gaps_to_10": "Loading state reappears after retry (setAudioReady=false runs before new Howl is created). Play button is disabled while loading. Bilingual error message present. Gap: After retry succeeds, the SongCoverArt's imgError state is not reset — if the image had previously failed and the song URL changes on retry (unlikely in this app but architecturally fragile). Also no visual feedback that hello.mp3 is playing in GreetingStep."
+    },
+    {
+      "name": "Code Quality",
+      "score": 9,
+      "gaps_to_10": "SongPlayer.tsx is 165 lines (well under 200). Clean separation of concerns: SongCoverArt owns image error state, SongPlayerControls is purely props-driven, SongPlayer orchestrates. handleRetry is stable via useCallback. Minor gap: SongPlayerControls renders a Back button in error state, but SongPlayer also renders one in the normal path — there is already a comment in the plan acknowledging this duplication. The error-state Back button and the normal-state Back button both call onBack, so functionally correct but slightly redundant."
+    },
+    {
+      "name": "Test Coverage",
+      "score": 7,
+      "gaps_to_10": "Retry creates new Howl (tested), play-btn disabled after retry (tested), GreetingStep plays hello on mount (tested, twice). Gap: No direct unit tests for SongCoverArt emoji fallback on image onError — this requires firing an image error event in jsdom which is non-trivial but was called out in the plan's expected_tests list. No direct unit tests for SongPlayerControls rendering ▶ vs ⏸ in isolation. Both are covered only implicitly by integration tests."
+    },
+    {
+      "name": "Security",
+      "score": 10,
+      "gaps_to_10": "No hardcoded API keys or secrets. Audio paths are static strings from typed seed data. No user input is passed to file paths or evaluated. No XSS vectors introduced."
+    }
+  ],
+  "average_score": 8.67,
+  "issues": [
+    {
+      "severity": "P2",
+      "file": "src/__tests__/SongTime.test.tsx",
+      "description": "Missing unit test for SongCoverArt emoji fallback on image error. The plan's expected_tests listed 'SongCoverArt renders 🎵 emoji fallback when image onError fires' as a required test, but no test for this exists in the delivered code. The only coverage is implicit (SongPlayer renders SongCoverArt, but no test fires an image onError event).",
+      "fix_guidance": "Add a test that renders <SongCoverArt src='/broken.png' alt='test' />, fires an error event on the img element (fireEvent.error(img)), and asserts that the 🎵 emoji span appears.",
+      "checklist_item": "Test quality (P2) — error scenario tests exist"
+    },
+    {
+      "severity": "P2",
+      "file": "src/__tests__/SongTime.test.tsx",
+      "description": "Missing direct unit tests for SongPlayerControls rendering the correct play/pause icon. The plan's expected_tests listed 'SongPlayerControls renders ▶ when isPlaying=false, ⏸ when isPlaying=true', but no such test was written. Coverage is only via SongTime integration tests which do not exercise the isPlaying=true path after audio loads.",
+      "fix_guidance": "Render <SongPlayerControls isReady={true} isPlaying={false} hasError={false} onPlayPause={fn} onRetry={fn} onBack={fn} /> and assert the ▶ button text, then render with isPlaying={true} and assert ⏸.",
+      "checklist_item": "Test quality (P2) — error scenario tests exist"
+    },
+    {
+      "severity": "P2",
+      "file": "src/components/activities/SongCoverArt.tsx",
+      "description": "SongCoverArt's imgError state is not reset when the src prop changes (e.g., if a parent renders SongCoverArt with a new src after retry or song change). Because imgError is local state initialized to false, it will reset on unmount+remount but NOT if the parent merely passes a new src prop to the same mounted instance. In the current app this is benign (song changes cause SongPlayer to unmount/remount SongCoverArt), but it is a latent bug.",
+      "fix_guidance": "Add a useEffect that resets imgError to false when src changes: useEffect(() => { setImgError(false); }, [src]);",
+      "checklist_item": "UX completeness (P2 polish)"
+    }
+  ],
+  "summary": "All 7 requirements are correctly implemented: GreetingStep plays hello.mp3 on mount via audioManager.playWordEn (file confirmed to exist), the retry mechanism correctly increments retryCount which is a dependency of the Howl useEffect causing a fresh Howl instance to be created, the play button is disabled (isReady=false) while the new Howl loads, SongPlayer.tsx is 165 lines (under 200), SongCoverArt shows 🎵 emoji on image load error, SongPlayerControls renders the correct ⏸/▶ icon based on isPlaying, and the retryCount dep array approach is the correct architectural fix for the retry bug. Three P2 issues exist: missing isolated unit tests for SongCoverArt emoji fallback and SongPlayerControls icon rendering (both were listed in the plan's expected_tests but not delivered), and a latent bug where SongCoverArt imgError state does not reset if src prop changes on a mounted instance. No P1 issues were found. Average score 8.67 — pass."
+}

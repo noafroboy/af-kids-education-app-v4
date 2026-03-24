@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MascotIdle } from '@/components/ui/MascotIdle';
+import { audioManager } from '@/lib/audio';
 
 interface GreetingStepProps {
   onProceed: () => void;
@@ -13,6 +14,10 @@ export function GreetingStep({ onProceed }: GreetingStepProps) {
     const timer = setTimeout(() => onProceed(), 3000);
     return () => clearTimeout(timer);
   }, [onProceed]);
+
+  useEffect(() => {
+    audioManager.playWordEn('/audio/en/hello.mp3');
+  }, []);
 
   return (
     <div
