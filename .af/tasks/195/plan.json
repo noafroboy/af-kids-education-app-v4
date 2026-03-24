@@ -1,0 +1,187 @@
+{
+  "task_id": 195,
+  "task_type": "integration_verification",
+  "approach": "conservative",
+  "approach_rationale": "This is an integration-verification task — minimal new code, test what exists, fix failures discovered during testing.",
+
+  "files_to_modify": [
+    "CANDIDATES — only if tests/build reveal actual failures:",
+    "src/components/GuidedSession.tsx (187 lines, may need extraction if a size check fails)",
+    "src/app/activities/listen-find/page.tsx (116 lines, OK)",
+    "src/app/parent/dashboard/page.tsx (160 lines, OK)",
+    "src/app/parent/settings/page.tsx (163 lines, OK)",
+    "src/components/activities/ExploreCards.tsx (170 lines, OK)",
+    "src/components/activities/ListenAndFind.tsx (171 lines, OK)",
+    "Any file where TS/ESLint errors are found"
+  ],
+
+  "files_to_create": [
+    ".af/tasks/195/plan.json",
+    ".af/tasks/195/plan.md",
+    ".af/tasks/195/integration-report.md",
+    ".af/tasks/195/pr-body.md"
+  ],
+
+  "steps": [
+    {
+      "step": 1,
+      "name": "Create branch",
+      "action": "git checkout -b af/195-integration-verification-confirm-all-4-u/1",
+      "expected": "Branch created successfully"
+    },
+    {
+      "step": 2,
+      "name": "Run npm run build",
+      "action": "npm run build (includes prebuild verify-assets)",
+      "expected": "Exit code 0, zero TS/ESLint errors",
+      "risk": "prebuild might fail if assets missing; TS errors from parallel tasks"
+    },
+    {
+      "step": 3,
+      "name": "Run security audit",
+      "action": "grep -rn 'sk-' src/ scripts/ && grep -rn 'OPENAI_API_KEY\\s*=' src/",
+      "expected": "Zero results",
+      "risk": "Low — previous tasks cleaned this up"
+    },
+    {
+      "step": 4,
+      "name": "Run component size check",
+      "action": "wc -l src/components/**/*.tsx src/app/**/*.tsx",
+      "expected": "All files <= 200 lines",
+      "risk": "GuidedSession.tsx is 187 lines (borderline)"
+    },
+    {
+      "step": 5,
+      "name": "Start dev server and run E2E tests",
+      "action": "npm run test:e2e",
+      "expected": "All Playwright tests pass",
+      "risk": "Flaky tests, timing issues, missing audio files (hello.mp3)"
+    },
+    {
+      "step": 6,
+      "name": "Manual verification: Onboarding journey",
+      "action": "Navigate to / in fresh browser context; complete onboarding; verify home screen",
+      "expected": "Child name visible, no JS errors"
+    },
+    {
+      "step": 7,
+      "name": "Manual verification: Explore Cards journey",
+      "action": "Tap 'Explore Cards'; verify PNG images (not placeholders); tap audio button; tap Next",
+      "expected": "img src points to /images/vocabulary/*.png; audio plays via Howler"
+    },
+    {
+      "step": 8,
+      "name": "Manual verification: Listen & Find journey",
+      "action": "Tap 'Listen & Find'; verify choice cards; tap play; tap correct card",
+      "expected": "Audio plays; success animation shows; game advances"
+    },
+    {
+      "step": 9,
+      "name": "Manual verification: Parent Dashboard journey",
+      "action": "Tap parent icon; enter correct PIN; verify dashboard",
+      "expected": "PIN gate blocks wrong PIN; correct PIN shows dashboard"
+    },
+    {
+      "step": 10,
+      "name": "Data persistence check",
+      "action": "Complete onboarding; hard refresh (Cmd+Shift+R); verify home screen still appears",
+      "expected": "Child name persists via IndexedDB"
+    },
+    {
+      "step": 11,
+      "name": "Mobile layout check",
+      "action": "DevTools 375x667 viewport; measure button heights",
+      "expected": "All tap targets >= 88px"
+    },
+    {
+      "step": 12,
+      "name": "Fix any failures",
+      "action": "Fix specific issues found in steps 2-11",
+      "expected": "All checks pass"
+    },
+    {
+      "step": 13,
+      "name": "Document results",
+      "action": "Write integration-report.md with pass/fail for each check",
+      "expected": "All requirements documented"
+    },
+    {
+      "step": 14,
+      "name": "Write pr-body.md and commit",
+      "action": "git add, commit, push",
+      "expected": "Clean commit history"
+    }
+  ],
+
+  "expected_tests": {
+    "unit": "npm test (jest --passWithNoTests) — existing unit tests should pass",
+    "e2e": [
+      "sanity.spec.ts: no-hardcoded-api-keys, component-size, activity-routes, audio-buttons, touch-targets",
+      "onboarding.spec.ts: full onboarding flow + persistence reload",
+      "free-play.spec.ts: explore-cards, matching-pairs, listen-and-find, song-time",
+      "session.spec.ts: guided session greeting → mood → explore → celebration",
+      "parent-dashboard.spec.ts: direct nav redirect, wrong PIN error, correct PIN grants access",
+      "viewport.spec.ts: 375x667 viewport check"
+    ]
+  },
+
+  "risk_areas": [
+    {
+      "risk": "prebuild verify-assets fails",
+      "likelihood": "Low",
+      "mitigation": "Previous task 184 regenerated assets; check public/audio/ and public/images/vocabulary/ have all 100+ words covered"
+    },
+    {
+      "risk": "TypeScript errors from parallel tasks 1-3",
+      "likelihood": "Medium",
+      "mitigation": "Run tsc --noEmit first; fix type errors incrementally"
+    },
+    {
+      "risk": "ESLint errors blocking build",
+      "likelihood": "Low-Medium",
+      "mitigation": "Check .eslintrc.json for error-vs-warn config; fix errors, allow warnings"
+    },
+    {
+      "risk": "E2E test timing/flakiness",
+      "likelihood": "Low",
+      "mitigation": "Tests already have generous timeouts (8-12s); use page.waitForTimeout sparingly"
+    },
+    {
+      "risk": "hello.mp3 missing for GreetingStep",
+      "likelihood": "Medium",
+      "mitigation": "Audio error is handled gracefully (console.warn); test doesn't check audio playback"
+    },
+    {
+      "risk": "GuidedSession.tsx approaches 200 lines",
+      "likelihood": "Low (currently 187)",
+      "mitigation": "Extract GreetingStep/MoodWrapper if line count grows"
+    },
+    {
+      "risk": "Parent dashboard: isAuthed returns false on direct nav",
+      "likelihood": "Verified working",
+      "mitigation": "useParentAuth redirects to /parent if sessionStorage.parentAuthed != '1'"
+    }
+  ],
+
+  "persistence_strategy": "IndexedDB via idb library (getDB in src/lib/db.ts). All settings (childName, childAge, pinHash, onboardingComplete), progress, and sessions stored in 'littlebridge' DB. Survives hard refresh by design.",
+
+  "error_handling_approach": "All async ops have try/catch with user-facing error states. API routes: N/A (no server-side API routes in this app — pure client-side). DB operations: try/catch with error state rendering.",
+
+  "key_findings": {
+    "audio": "Howler.js AudioManager in src/lib/audio.ts — verified NOT using browser speechSynthesis",
+    "images": "VocabularyCard uses Next.js Image with src=word.imagePath (/images/vocabulary/*.png); fallback to /images/placeholder.png on error",
+    "pin_security": "SHA-256 with salt 'littlebridge-2026' via Web Crypto API; stored in IndexedDB; session auth via sessionStorage",
+    "component_sizes": {
+      "GuidedSession.tsx": 187,
+      "ExploreCards.tsx": 170,
+      "ListenAndFind.tsx": 171,
+      "HomeScreen.tsx": 156,
+      "parent/dashboard/page.tsx": 160,
+      "parent/settings/page.tsx": 163,
+      "parent/page.tsx": 143,
+      "MatchingPairs.tsx": 165,
+      "SongPlayer.tsx": 165
+    },
+    "no_api_keys_in_src": "Verified: src/ only uses process.env references, never raw key strings"
+  }
+}
